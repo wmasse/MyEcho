@@ -243,6 +243,11 @@ export default function Home() {
   ] = useState("");
 
   const [
+    lastFmSearchError,
+    setLastFmSearchError,
+  ] = useState("");
+
+  const [
     spotifySearchNeedsConnection,
     setSpotifySearchNeedsConnection,
   ] = useState(false);
@@ -373,6 +378,7 @@ export default function Home() {
       setSpotifySearchError(
         ""
       );
+      setLastFmSearchError("");
       setSpotifySearchNeedsConnection(
         false
       );
@@ -383,6 +389,7 @@ export default function Home() {
     setSpotifyResults([]);
     setLastFmResults([]);
     setSpotifySearchError("");
+    setLastFmSearchError("");
     setSpotifySearchNeedsConnection(false);
     setSearchingSpotify(true);
 
@@ -392,8 +399,6 @@ export default function Home() {
     const timeout =
       setTimeout(
         async () => {
-          let shouldTryLastFm = true;
-
           try {
             setSpotifySearchError(
               ""
@@ -424,17 +429,9 @@ export default function Home() {
                 response.status ===
                 401
               ) {
-                shouldTryLastFm = false;
                 setSpotifySearchNeedsConnection(
                   true
                 );
-              }
-
-              if (
-                response.status === 403 ||
-                response.status === 429
-              ) {
-                shouldTryLastFm = false;
               }
 
               throw new Error(
@@ -482,11 +479,7 @@ export default function Home() {
                 ).includes(normalizedQuery)
               );
 
-            if (
-              shouldTryLastFm &&
-              !hasCachedMatches &&
-              !controller.signal.aborted
-            ) {
+            if (!hasCachedMatches && !controller.signal.aborted) {
               setSearchingLastFm(true);
 
               try {
@@ -498,9 +491,15 @@ export default function Home() {
                   }
                 );
 
+                const fallbackData = await fallbackResponse.json();
                 if (fallbackResponse.ok) {
-                  const fallbackData = await fallbackResponse.json();
                   setLastFmResults(fallbackData.tracks ?? []);
+                } else {
+                  setLastFmSearchError(
+                    typeof fallbackData.error === "string"
+                      ? fallbackData.error
+                      : "Last.fm search could not be completed. Please try again."
+                  );
                 }
               } catch (fallbackError) {
                 if (
@@ -508,6 +507,9 @@ export default function Home() {
                   fallbackError.name !== "AbortError"
                 ) {
                   console.error("Last.fm search fallback failed:", fallbackError);
+                  setLastFmSearchError(
+                    "Last.fm search could not be reached. Please try again."
+                  );
                 }
               } finally {
                 if (!controller.signal.aborted) {
@@ -1808,6 +1810,12 @@ export default function Home() {
                     </p>
                   )}
 
+                  {lastFmSearchError && (
+                    <p className="mt-2 text-zinc-500">
+                      {lastFmSearchError}
+                    </p>
+                  )}
+
                   {(!connected ||
                     spotifySearchNeedsConnection) && (
                     <a
@@ -1966,9 +1974,9 @@ export default function Home() {
                     <p className="font-semibold text-zinc-500">
                       {search
                         ? spotifySearchError
-                          ? tracks.length > 0
-                            ? "No matching songs found in your saved library or Last.fm."
-                            : "Spotify search failed and no Last.fm matches are available."
+                          ? lastFmSearchError
+                            ? "Last.fm could not provide matches. See the error above."
+                            : "No Spotify or Last.fm matches found."
                           : "No Spotify results found."
                         : librarySkipped
                           ? "Search Spotify above to choose your first song."

@@ -73,3 +73,36 @@ export async function getSpotifyAccessToken() {
 
   return data.access_token;
 }
+
+/** Use app authentication for catalog search so it does not depend on a user session. */
+export async function getSpotifyCatalogAccessToken() {
+  const clientId = process.env.SPOTIFY_CLIENT_ID;
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    return null;
+  }
+
+  try {
+    const credentials = Buffer.from(
+      `${clientId}:${clientSecret}`
+    ).toString("base64");
+    const response = await fetch(TOKEN_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${credentials}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ grant_type: "client_credentials" }),
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    return typeof data.access_token === "string" ? data.access_token : null;
+  } catch {
+    return null;
+  }
+}
