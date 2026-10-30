@@ -268,10 +268,66 @@ export default function Home() {
   async function loadLibrary() {
     setLoading(true);
     setError("");
-
+  
+    /*
+     * Use cached library first.
+     */
+    try {
+      const cached =
+        localStorage.getItem(
+          "echoSpotifyLibrary"
+        );
+  
+      const cachedAt =
+        localStorage.getItem(
+          "echoSpotifyLibraryCachedAt"
+        );
+  
+      if (
+        cached &&
+        cachedAt
+      ) {
+        const age =
+          Date.now() -
+          Number(cachedAt);
+  
+        /*
+         * Reuse library for 24 hours.
+         */
+        const maxAge =
+          24 * 60 * 60 * 1000;
+  
+        if (age < maxAge) {
+          const cachedTracks: Track[] =
+            JSON.parse(cached);
+  
+          setTracks(cachedTracks);
+          setLoadedCount(
+            cachedTracks.length
+          );
+          setTotalCount(
+            cachedTracks.length
+          );
+          setConnected(true);
+          setLoading(false);
+  
+          return;
+        }
+      }
+    } catch (err) {
+      console.error(
+        "Library cache error:",
+        err
+      );
+    }
+  
+    /*
+     * No valid cache:
+     * fetch the full Spotify library.
+     */
     let offset = 0;
     let allTracks: Track[] = [];
-
+  
     try {
       while (true) {
         const response =
@@ -281,56 +337,97 @@ export default function Home() {
               cache: "no-store",
             }
           );
-
+  
         if (
           response.status === 401
         ) {
           setConnected(false);
           setTracks([]);
-
           return;
         }
-
-        if (!response.ok) {
+  
+        const data =
+          await response.json();
+  
+        /*
+         * Spotify development quota exceeded.
+         */
+        if (
+          response.status === 429
+        ) {
           throw new Error(
-            `Spotify library request failed: ${response.status}`
+            "Spotify's development quota has been reached. Your cached library will be used when available."
           );
         }
-
-        const data: LibraryResponse =
-          await response.json();
-
+  
+        if (!response.ok) {
+          throw new Error(
+            data?.details ||
+              data?.error ||
+              `Spotify library request failed: ${response.status}`
+          );
+        }
+  
         setConnected(true);
-        setTotalCount(data.total);
-
+  
+        setTotalCount(
+          data.total
+        );
+  
         allTracks = [
           ...allTracks,
           ...data.tracks,
         ];
-
+  
         setTracks([
           ...allTracks,
         ]);
-
+  
         setLoadedCount(
           allTracks.length
         );
-
+  
         if (
           data.nextOffset ===
           null
         ) {
           break;
         }
-
+  
         offset =
           data.nextOffset;
+  
+        /*
+         * Don't hammer Spotify.
+         */
+        await new Promise(
+          (resolve) =>
+            setTimeout(
+              resolve,
+              250
+            )
+        );
       }
+  
+      /*
+       * Cache completed library.
+       */
+      localStorage.setItem(
+        "echoSpotifyLibrary",
+        JSON.stringify(allTracks)
+      );
+  
+      localStorage.setItem(
+        "echoSpotifyLibraryCachedAt",
+        Date.now().toString()
+      );
     } catch (err) {
       console.error(err);
-
+  
       setError(
-        "Echo had trouble loading your Spotify library."
+        err instanceof Error
+          ? err.message
+          : "Echo had trouble loading your Spotify library."
       );
     } finally {
       setLoading(false);
