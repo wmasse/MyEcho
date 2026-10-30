@@ -399,6 +399,8 @@ export default function Home() {
     const timeout =
       setTimeout(
         async () => {
+          let spotifyRateLimited = false;
+
           try {
             setSpotifySearchError(
               ""
@@ -425,6 +427,19 @@ export default function Home() {
               await response.json();
 
             if (!response.ok) {
+              if (response.status === 429) {
+                spotifyRateLimited = true;
+                const retryAfter = Number(
+                  response.headers.get("Retry-After")
+                );
+
+                throw new Error(
+                  Number.isFinite(retryAfter) && retryAfter > 0
+                    ? `Spotify is temporarily rate limiting searches. Try again in ${Math.ceil(retryAfter)} seconds.`
+                    : "Spotify is temporarily rate limiting searches. Please wait a moment and try again."
+                );
+              }
+
               if (
                 response.status ===
                 401
@@ -479,7 +494,11 @@ export default function Home() {
                 ).includes(normalizedQuery)
               );
 
-            if (!hasCachedMatches && !controller.signal.aborted) {
+            if (
+              !hasCachedMatches &&
+              !spotifyRateLimited &&
+              !controller.signal.aborted
+            ) {
               setSearchingLastFm(true);
 
               try {

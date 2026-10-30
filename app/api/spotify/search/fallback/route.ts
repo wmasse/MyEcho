@@ -42,7 +42,12 @@ type SpotifyMatch = {
 async function findSpotifyMatch(
   token: string,
   candidate: LastFmTrack
-): Promise<{ track: SpotifyMatch | null; error?: string }> {
+): Promise<{
+  track: SpotifyMatch | null;
+  error?: string;
+  status?: number;
+  retryAfter?: string;
+}> {
   if (!candidate.name || !candidate.artist) {
     return { track: null };
   }
@@ -68,6 +73,8 @@ async function findSpotifyMatch(
       return {
         track: null,
         error: `Spotify catalog search returned HTTP ${response.status}.`,
+        status: response.status,
+        retryAfter: response.headers.get("retry-after") ?? undefined,
       };
     }
 
@@ -187,9 +194,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const resolved = await Promise.all(
-      candidates.map((candidate) => findSpotifyMatch(token, candidate))
-    );
+    const resolved: Awaited<ReturnType<typeof findSpotifyMatch>>[] = [];
+    for (const candidate of candidates) {
+      const result = await findSpotifyMatch(token, candidate);
+      resolved.push(result);
+
+      // Spotify rate limits apply to the catalog search endpoint. Stop here
+      // instead of sending the remaining Last.fm candidates into the same limit.
+      if (result.status === 429) {
+        const headers = new Headers();
+        if (result.retryAfter) {
+          headers.set("Retry-After", result.retryAfter);
+        }
+
+        return NextResponse.json(
+          {
+            error:
+              "Last.fm found matches, but Spotify is temporarily rate limiting catalog searches. Please wait a moment and try again.",
+          },
+          { status: 429, headers }
+        );
+      }
+    }
 
     const uniqueTracks = new Map(
       resolved

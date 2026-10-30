@@ -44,12 +44,22 @@ export async function GET(request: NextRequest) {
       error
     );
 
+    const headers = new Headers();
+    const retryAfter = response.headers.get("retry-after");
+    if (retryAfter) {
+      headers.set("Retry-After", retryAfter);
+    }
+
     return NextResponse.json(
       {
-        error: "spotify_search_failed",
+        error:
+          response.status === 429
+            ? "spotify_rate_limited"
+            : "spotify_search_failed",
       },
       {
         status: response.status,
+        headers,
       }
     );
   }
