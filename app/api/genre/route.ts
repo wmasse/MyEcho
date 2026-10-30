@@ -1,20 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const GENRES = [
-  "Indie / Alternative",
-  "Rock",
-  "Hip-Hop / Rap",
-  "R&B / Soul",
-  "Pop",
-  "Electronic",
-  "Metal / Punk",
-  "Dreamy / Ambient",
-  "Folk / Country",
-  "Jazz / Classical",
-  "Other",
-] as const;
+type Genre =
+  | "Indie / Alternative"
+  | "Rock"
+  | "Hip-Hop / Rap"
+  | "R&B / Soul"
+  | "Pop"
+  | "Electronic"
+  | "Metal / Punk"
+  | "Dreamy / Ambient"
+  | "Folk / Country"
+  | "Jazz / Classical"
+  | "Other";
 
-type Genre = (typeof GENRES)[number];
+function extractTagNames(data: unknown): string[] {
+  if (!data || typeof data !== "object") {
+    return [];
+  }
+
+  const topTags = (data as { toptags?: unknown }).toptags;
+  if (!topTags || typeof topTags !== "object") {
+    return [];
+  }
+
+  const rawTags = (topTags as { tag?: unknown }).tag;
+  const tags = Array.isArray(rawTags)
+    ? rawTags
+    : rawTags
+      ? [rawTags]
+      : [];
+
+  return tags.slice(0, 10).flatMap((tag) => {
+    if (!tag || typeof tag !== "object") {
+      return [];
+    }
+
+    const name = (tag as { name?: unknown }).name;
+    return typeof name === "string" ? [name] : [];
+  });
+}
 
 function normalize(value: string) {
   return value
@@ -242,18 +266,10 @@ export async function GET(
       });
     }
 
-    const data =
+    const data: unknown =
       await response.json();
 
-    const tags: string[] =
-      (
-        data?.toptags?.tag ?? []
-      )
-        .slice(0, 10)
-        .map(
-          (tag: any) =>
-            tag.name as string
-        );
+    const tags = extractTagNames(data);
 
     const genre =
       classifyGenre(tags);

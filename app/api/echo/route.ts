@@ -1024,7 +1024,7 @@ export async function POST(
    * Only broaden if we're missing something.
    * -------------------------------------------------
    */
-  let relatedArtistSignals =
+  const relatedArtistSignals =
     new Map<
       string,
       ArtistSignal

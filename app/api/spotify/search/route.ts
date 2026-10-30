@@ -1,6 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSpotifyAccessToken } from "@/lib/spotify";
 
+type SpotifySearchResponse = {
+  tracks?: {
+    items?: {
+      id?: string;
+      uri: string;
+      name: string;
+      artists?: { name: string }[];
+      album?: {
+        name?: string;
+        images?: { url: string }[];
+      };
+    }[];
+  };
+};
+
 export async function GET(request: NextRequest) {
   const token = await getSpotifyAccessToken();
 
@@ -64,18 +79,18 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as SpotifySearchResponse;
 
   const tracks =
     data?.tracks?.items
-      ?.filter((track: any) => track?.id)
-      .map((track: any) => ({
+      ?.filter((track) => track?.id)
+      .map((track) => ({
         id: track.id,
         uri: track.uri,
         name: track.name,
 
         artist: track.artists
-          ?.map((artist: any) => artist.name)
+          ?.map((artist) => artist.name)
           .join(", "),
 
         album:

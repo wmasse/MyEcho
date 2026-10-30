@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+type SpotifySavedTrack = {
+  id: string;
+  uri: string;
+  name: string;
+  artists: { name: string }[];
+  album: {
+    name: string;
+    images?: { url: string }[];
+  };
+};
+
+type SpotifyLikedResponse = {
+  items: {
+    added_at: string;
+    track: SpotifySavedTrack | null;
+  }[];
+  total: number;
+};
+
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies();
 
@@ -41,26 +60,28 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as SpotifyLikedResponse;
 
-  const tracks = data.items
-    .filter((item: any) => item.track)
-    .map((item: any) => ({
-      id: item.track.id,
-      uri: item.track.uri,
-      name: item.track.name,
+  const tracks = data.items.flatMap(({ track, added_at }) =>
+    track
+      ? [{
+      id: track.id,
+      uri: track.uri,
+      name: track.name,
 
-      artist: item.track.artists
-        .map((artist: any) => artist.name)
+      artist: track.artists
+        .map((artist) => artist.name)
         .join(", "),
 
-      album: item.track.album.name,
+      album: track.album.name,
 
       image:
-        item.track.album.images?.[0]?.url ?? null,
+        track.album.images?.[0]?.url ?? null,
 
-      addedAt: item.added_at,
-    }));
+      addedAt: added_at,
+    }]
+      : []
+  );
 
   const nextOffset =
     offset + 50 < data.total

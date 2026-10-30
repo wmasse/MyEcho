@@ -15,6 +15,7 @@ type Track = {
   artist: string;
   album: string;
   image: string | null;
+  externalUrl?: string;
 };
 
 type EchoResult = Track & {
@@ -175,6 +176,7 @@ function EchoContent() {
             ) ?? track
         );
 
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- Load the selected saved Echo from browser storage after hydration.
         setSeeds(savedSeeds);
         setLibrary([]);
 
@@ -730,12 +732,17 @@ function EchoContent() {
 
                         {/* OPEN */}
                         <a
-                          href={`https://open.spotify.com/track/${track.id}`}
+                          href={
+                            track.externalUrl ??
+                            `https://open.spotify.com/track/${track.id}`
+                          }
                           target="_blank"
                           rel="noreferrer"
                           className="hidden text-xs text-zinc-600 transition hover:text-white lg:block"
                         >
-                          Open
+                          {track.externalUrl
+                            ? "Apple Music ↗"
+                            : "Open"}
                         </a>
 
                         {/* REMOVE */}

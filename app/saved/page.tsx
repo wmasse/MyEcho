@@ -39,6 +39,7 @@ export default function SavedPage() {
     useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability -- Function declarations are hoisted; browser storage is read after hydration.
     loadPlaylists();
   }, []);
 

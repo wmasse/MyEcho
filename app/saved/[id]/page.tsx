@@ -14,6 +14,7 @@ type Track = {
   artist: string;
   album: string;
   image: string | null;
+  externalUrl?: string;
 
   source?: "library" | "discovery";
   echoScore?: number;
@@ -78,6 +79,7 @@ function SavedEchoContent() {
         return;
       }
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Hydrate the selected playlist from browser storage after hydration.
       setPlaylist(found);
       setName(found.name);
     } catch (err) {
@@ -445,14 +447,19 @@ function SavedEchoContent() {
                   </span>
                 )}
 
-                {/* SPOTIFY */}
+                {/* OPEN TRACK */}
                 <a
-                  href={`https://open.spotify.com/track/${track.id}`}
+                  href={
+                    track.externalUrl ??
+                    `https://open.spotify.com/track/${track.id}`
+                  }
                   target="_blank"
                   rel="noreferrer"
                   className="hidden text-xs text-zinc-600 transition hover:text-white sm:block"
                 >
-                  Open
+                  {track.externalUrl
+                    ? "Apple Music ↗"
+                    : "Open"}
                 </a>
 
                 {/* REMOVE */}

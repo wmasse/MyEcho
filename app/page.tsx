@@ -17,6 +17,7 @@ type Track = {
   artist: string;
   album: string;
   image: string | null;
+  externalUrl?: string;
   addedAt?: string;
 };
 
@@ -223,8 +224,8 @@ export default function Home() {
   ] = useState<Track[]>([]);
 
   const [
-    lastFmResults,
-    setLastFmResults,
+    appleResults,
+    setAppleResults,
   ] = useState<Track[]>([]);
 
   const [
@@ -233,8 +234,8 @@ export default function Home() {
   ] = useState(false);
 
   const [
-    searchingLastFm,
-    setSearchingLastFm,
+    searchingApple,
+    setSearchingApple,
   ] = useState(false);
 
   const [
@@ -243,8 +244,8 @@ export default function Home() {
   ] = useState("");
 
   const [
-    lastFmSearchError,
-    setLastFmSearchError,
+    appleSearchError,
+    setAppleSearchError,
   ] = useState("");
 
   const [
@@ -314,6 +315,17 @@ export default function Home() {
 
   const tracksRef = useRef(tracks);
 
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    setSpotifyResults([]);
+    setAppleResults([]);
+    setSpotifySearchError("");
+    setAppleSearchError("");
+    setSpotifySearchNeedsConnection(false);
+    setSearchingApple(false);
+    setSearchingSpotify(Boolean(value.trim()));
+  }
+
   useEffect(() => {
     tracksRef.current = tracks;
   }, [tracks]);
@@ -334,10 +346,12 @@ export default function Home() {
     libraryStarted.current =
       true;
 
+    // eslint-disable-next-line react-hooks/immutability -- Function declarations are hoisted; this effect runs after the render that creates it.
     loadCachedLibrary();
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Keep server and first client render deterministic, then randomize after hydration.
     setHeroAlbums(
       randomPopularAlbums()
     );
@@ -358,6 +372,7 @@ export default function Home() {
     genresStarted.current =
       true;
 
+    // eslint-disable-next-line react-hooks/immutability -- Function declarations are hoisted; this effect uses the current render's tracks.
     void loadGenres();
   }, [loading, tracks]);
 
@@ -369,29 +384,8 @@ export default function Home() {
       search.trim();
 
     if (!query) {
-      setSpotifyResults([]);
-      setLastFmResults([]);
-      setSearchingSpotify(
-        false
-      );
-      setSearchingLastFm(false);
-      setSpotifySearchError(
-        ""
-      );
-      setLastFmSearchError("");
-      setSpotifySearchNeedsConnection(
-        false
-      );
-
       return;
     }
-
-    setSpotifyResults([]);
-    setLastFmResults([]);
-    setSpotifySearchError("");
-    setLastFmSearchError("");
-    setSpotifySearchNeedsConnection(false);
-    setSearchingSpotify(true);
 
     const controller =
       new AbortController();
@@ -429,15 +423,7 @@ export default function Home() {
             if (!response.ok) {
               if (response.status === 429) {
                 spotifyRateLimited = true;
-                const retryAfter = Number(
-                  response.headers.get("Retry-After")
-                );
-
-                throw new Error(
-                  Number.isFinite(retryAfter) && retryAfter > 0
-                    ? `Spotify is temporarily rate limiting searches. Try again in ${Math.ceil(retryAfter)} seconds.`
-                    : "Spotify is temporarily rate limiting searches. Please wait a moment and try again."
-                );
+                throw new Error("Spotify search rate limited.");
               }
 
               if (
@@ -496,14 +482,13 @@ export default function Home() {
 
             if (
               !hasCachedMatches &&
-              !spotifyRateLimited &&
               !controller.signal.aborted
             ) {
-              setSearchingLastFm(true);
+              setSearchingApple(true);
 
               try {
                 const fallbackResponse = await fetch(
-                  `/api/spotify/search/fallback?q=${encodeURIComponent(query)}`,
+                  `/api/apple/search?q=${encodeURIComponent(query)}`,
                   {
                     cache: "no-store",
                     signal: controller.signal,
@@ -512,12 +497,12 @@ export default function Home() {
 
                 const fallbackData = await fallbackResponse.json();
                 if (fallbackResponse.ok) {
-                  setLastFmResults(fallbackData.tracks ?? []);
+                  setAppleResults(fallbackData.tracks ?? []);
                 } else {
-                  setLastFmSearchError(
+                  setAppleSearchError(
                     typeof fallbackData.error === "string"
                       ? fallbackData.error
-                      : "Last.fm search could not be completed. Please try again."
+                      : "Apple catalog search could not be completed. Please try again."
                   );
                 }
               } catch (fallbackError) {
@@ -525,22 +510,24 @@ export default function Home() {
                   !(fallbackError instanceof DOMException) ||
                   fallbackError.name !== "AbortError"
                 ) {
-                  console.error("Last.fm search fallback failed:", fallbackError);
-                  setLastFmSearchError(
-                    "Last.fm search could not be reached. Please try again."
+                  console.error("Apple catalog search fallback failed:", fallbackError);
+                  setAppleSearchError(
+                    "Apple catalog search could not be reached. Please try again."
                   );
                 }
               } finally {
                 if (!controller.signal.aborted) {
-                  setSearchingLastFm(false);
+                  setSearchingApple(false);
                 }
               }
             }
 
             setSpotifySearchError(
-              err instanceof Error
-                ? err.message
-                : "Spotify search failed."
+              spotifyRateLimited
+                ? "Spotify is temporarily rate limiting searches."
+                : err instanceof Error
+                  ? err.message
+                  : "Spotify search failed."
             );
           } finally {
             if (
@@ -1143,7 +1130,7 @@ export default function Home() {
    */
   const libraryTracks =
     useMemo(() => {
-      let result =
+      const result =
         genreFilter ===
         "All"
           ? [...tracks]
@@ -1241,7 +1228,7 @@ export default function Home() {
       ? spotifySearchError
         ? cachedSearchResults.length > 0
           ? cachedSearchResults
-          : lastFmResults
+          : appleResults
         : spotifyResults
       : libraryTracks;
 
@@ -1250,11 +1237,11 @@ export default function Home() {
     Boolean(spotifySearchError) &&
     cachedSearchResults.length > 0;
 
-  const showingLastFmSearchFallback =
+  const showingAppleSearchFallback =
     Boolean(search.trim()) &&
     Boolean(spotifySearchError) &&
     cachedSearchResults.length === 0 &&
-    lastFmResults.length > 0;
+    appleResults.length > 0;
 
   const libraryIds =
     useMemo(
@@ -1555,13 +1542,13 @@ export default function Home() {
                       onChange={(
                         event
                       ) =>
-                        setSearch(
+                        handleSearchChange(
                           event
                             .target
                             .value
                         )
                       }
-                      placeholder="Search any song on Spotify..."
+                      placeholder="Search for any song..."
                       className="h-12 w-full rounded-full border border-white/[0.08] bg-white/[0.05] px-5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[#1DB954]/50 focus:bg-white/[0.07]"
                     />
                   </div>
@@ -1624,8 +1611,8 @@ export default function Home() {
                       {search
                         ? showingLibrarySearchFallback
                           ? "Saved library"
-                          : showingLastFmSearchFallback
-                            ? "Last.fm matches"
+                          : showingAppleSearchFallback
+                            ? "Apple Music"
                           : "Spotify"
                         : librarySkipped
                           ? "Library skipped"
@@ -1635,13 +1622,13 @@ export default function Home() {
                     <h2 className="mt-2 text-4xl font-bold tracking-tight">
                       {search
                         ? searchingSpotify
-                          ? searchingLastFm
-                            ? "Searching Last.fm..."
+                          ? searchingApple
+                            ? "Searching Apple Music..."
                             : "Searching Spotify..."
                           : showingLibrarySearchFallback
                             ? "Saved library matches"
-                            : showingLastFmSearchFallback
-                              ? "Last.fm matches"
+                            : showingAppleSearchFallback
+                              ? "Apple Music matches"
                             : "Spotify results"
                         : librarySkipped
                           ? "Search for songs you love"
@@ -1652,7 +1639,7 @@ export default function Home() {
                   {search && (
                     <button
                       onClick={() =>
-                        setSearch(
+                        handleSearchChange(
                           ""
                         )
                       }
@@ -1823,15 +1810,15 @@ export default function Home() {
                     </p>
                   )}
 
-                  {showingLastFmSearchFallback && (
+                  {showingAppleSearchFallback && (
                     <p className="mt-2 text-zinc-500">
-                      Found through Last.fm and matched to Spotify, so these songs are ready to use in your Echo.
+                      Found in Apple Music’s catalog. Select songs here as Echo seeds; generating an Echo still uses Spotify.
                     </p>
                   )}
 
-                  {lastFmSearchError && (
+                  {appleSearchError && (
                     <p className="mt-2 text-zinc-500">
-                      {lastFmSearchError}
+                      {appleSearchError}
                     </p>
                   )}
 
@@ -1855,8 +1842,9 @@ export default function Home() {
                       <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-zinc-800 border-t-[#1DB954]" />
 
                       <p className="mt-4 text-sm text-zinc-600">
-                        Searching
-                        Spotify...
+                        {searchingApple
+                          ? "Searching Apple Music..."
+                          : "Searching Spotify..."}
                       </p>
                     </div>
                   </div>
@@ -1896,89 +1884,101 @@ export default function Home() {
                         ];
 
                       return (
-                        <button
-                          key={
-                            track.id
-                          }
-                          onClick={() =>
-                            toggleTrack(
-                              track
-                            )
-                          }
-                          disabled={
-                            maxReached
-                          }
-                          className={`group text-left transition ${
-                            maxReached
-                              ? "cursor-default opacity-35"
-                              : ""
-                          }`}
+                        <div
+                          key={track.id}
+                          className="group"
                         >
-                          <div
-                            className={`relative aspect-square overflow-hidden rounded-[18px] bg-zinc-900 transition duration-200 ${
-                              isSelected
-                                ? "ring-2 ring-[#1DB954] ring-offset-4 ring-offset-[#070707]"
-                                : "group-hover:-translate-y-1"
+                          <button
+                            onClick={() =>
+                              toggleTrack(
+                                track
+                              )
+                            }
+                            disabled={
+                              maxReached
+                            }
+                            className={`w-full text-left transition ${
+                              maxReached
+                                ? "cursor-default opacity-35"
+                                : ""
                             }`}
                           >
-                            {track.image && (
-                              <img
-                                src={
-                                  track.image
-                                }
-                                alt={`${track.name} album cover`}
-                                className={`h-full w-full object-cover transition duration-300 ${
-                                  isSelected
-                                    ? "scale-[0.97] opacity-75"
-                                    : "group-hover:scale-[1.035]"
-                                }`}
-                              />
-                            )}
+                            <div
+                              className={`relative aspect-square overflow-hidden rounded-[18px] bg-zinc-900 transition duration-200 ${
+                                isSelected
+                                  ? "ring-2 ring-[#1DB954] ring-offset-4 ring-offset-[#070707]"
+                                  : "group-hover:-translate-y-1"
+                              }`}
+                            >
+                              {track.image && (
+                                <img
+                                  src={
+                                    track.image
+                                  }
+                                  alt={`${track.name} album cover`}
+                                  className={`h-full w-full object-cover transition duration-300 ${
+                                    isSelected
+                                      ? "scale-[0.97] opacity-75"
+                                      : "group-hover:scale-[1.035]"
+                                  }`}
+                                />
+                              )}
 
-                            {isSelected && (
-                              <div className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-[#1DB954] text-sm font-black text-black">
-                                ✓
-                              </div>
-                            )}
-
-                            {search &&
-                              isLiked &&
-                              !isSelected && (
-                                <div className="absolute bottom-3 left-3 rounded-full bg-black/75 px-3 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-white backdrop-blur">
-                                  Liked
+                              {isSelected && (
+                                <div className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-[#1DB954] text-sm font-black text-black">
+                                  ✓
                                 </div>
                               )}
-                          </div>
 
-                          <p
-                            className={`mt-4 truncate font-semibold ${
-                              isSelected
-                                ? "text-[#1DB954]"
-                                : "text-white"
-                            }`}
-                          >
-                            {
-                              track.name
-                            }
-                          </p>
+                              {search &&
+                                isLiked &&
+                                !isSelected && (
+                                  <div className="absolute bottom-3 left-3 rounded-full bg-black/75 px-3 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-white backdrop-blur">
+                                    Liked
+                                  </div>
+                                )}
+                            </div>
 
-                          <p className="mt-1 truncate text-sm text-zinc-500">
-                            {
-                              track.artist
-                            }
-                          </p>
+                            <p
+                              className={`mt-4 truncate font-semibold ${
+                                isSelected
+                                  ? "text-[#1DB954]"
+                                  : "text-white"
+                              }`}
+                            >
+                              {
+                                track.name
+                              }
+                            </p>
 
-                          {!search &&
-                            genre &&
-                            genre !==
-                              "All" && (
-                              <p className="mt-1 truncate text-xs text-zinc-700">
-                                {
-                                  genre
-                                }
-                              </p>
-                            )}
-                        </button>
+                            <p className="mt-1 truncate text-sm text-zinc-500">
+                              {
+                                track.artist
+                              }
+                            </p>
+
+                            {!search &&
+                              genre &&
+                              genre !==
+                                "All" && (
+                                <p className="mt-1 truncate text-xs text-zinc-700">
+                                  {
+                                    genre
+                                  }
+                                </p>
+                              )}
+                          </button>
+                          {track.externalUrl && (
+                            <a
+                              href={track.externalUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-2 inline-flex rounded-full border border-white/[0.1] px-3 py-1 text-[10px] font-semibold text-zinc-500 transition hover:border-white/25 hover:text-white"
+                            >
+                              Open in Apple Music ↗
+                            </a>
+                          )}
+                        </div>
                       );
                     }
                   )}
@@ -1993,12 +1993,12 @@ export default function Home() {
                     <p className="font-semibold text-zinc-500">
                       {search
                         ? spotifySearchError
-                          ? lastFmSearchError
-                            ? "Last.fm could not provide matches. See the error above."
-                            : "No Spotify or Last.fm matches found."
+                          ? appleSearchError
+                            ? "Apple Music could not provide matches. See the error above."
+                            : "No Spotify or Apple Music matches found."
                           : "No Spotify results found."
                         : librarySkipped
-                          ? "Search Spotify above to choose your first song."
+                          ? "Search for songs above to choose your first Echo seed."
                           : genresLoading
                             ? "Echo is still sorting this category."
                             : "No songs found in this category."}
