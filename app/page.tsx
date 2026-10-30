@@ -144,6 +144,16 @@ function artistKey(
   ).toLowerCase();
 }
 
+function normalizeSearchText(
+  value: string
+) {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 export default function Home() {
   const router = useRouter();
 
@@ -213,8 +223,18 @@ export default function Home() {
   ] = useState<Track[]>([]);
 
   const [
+    lastFmResults,
+    setLastFmResults,
+  ] = useState<Track[]>([]);
+
+  const [
     searchingSpotify,
     setSearchingSpotify,
+  ] = useState(false);
+
+  const [
+    searchingLastFm,
+    setSearchingLastFm,
   ] = useState(false);
 
   const [
@@ -287,6 +307,12 @@ export default function Home() {
       null
     );
 
+  const tracksRef = useRef(tracks);
+
+  useEffect(() => {
+    tracksRef.current = tracks;
+  }, [tracks]);
+
   /*
    * LOAD CACHE ONCE
    *
@@ -339,9 +365,11 @@ export default function Home() {
 
     if (!query) {
       setSpotifyResults([]);
+      setLastFmResults([]);
       setSearchingSpotify(
         false
       );
+      setSearchingLastFm(false);
       setSpotifySearchError(
         ""
       );
@@ -352,15 +380,19 @@ export default function Home() {
       return;
     }
 
+    setSpotifyResults([]);
+    setLastFmResults([]);
+    setSpotifySearchError("");
+    setSpotifySearchNeedsConnection(false);
+    setSearchingSpotify(true);
+
     const controller =
       new AbortController();
 
     const timeout =
       setTimeout(
         async () => {
-          setSearchingSpotify(
-            true
-          );
+          let shouldTryLastFm = true;
 
           try {
             setSpotifySearchError(
@@ -392,9 +424,17 @@ export default function Home() {
                 response.status ===
                 401
               ) {
+                shouldTryLastFm = false;
                 setSpotifySearchNeedsConnection(
                   true
                 );
+              }
+
+              if (
+                response.status === 403 ||
+                response.status === 429
+              ) {
+                shouldTryLastFm = false;
               }
 
               throw new Error(
@@ -407,9 +447,13 @@ export default function Home() {
 
             setConnected(true);
 
-            setSpotifyResults(
-              data.tracks ?? []
-            );
+            const spotifyTracks = data.tracks ?? [];
+
+            if (spotifyTracks.length === 0) {
+              throw new Error("No Spotify matches found.");
+            }
+
+            setSpotifyResults(spotifyTracks);
           } catch (err) {
             if (
               err instanceof
@@ -427,6 +471,50 @@ export default function Home() {
             setSpotifyResults(
               []
             );
+
+            const normalizedQuery =
+              normalizeSearchText(query);
+
+            const hasCachedMatches =
+              tracksRef.current.some((track) =>
+                normalizeSearchText(
+                  `${track.name} ${track.artist} ${track.album}`
+                ).includes(normalizedQuery)
+              );
+
+            if (
+              shouldTryLastFm &&
+              !hasCachedMatches &&
+              !controller.signal.aborted
+            ) {
+              setSearchingLastFm(true);
+
+              try {
+                const fallbackResponse = await fetch(
+                  `/api/spotify/search/fallback?q=${encodeURIComponent(query)}`,
+                  {
+                    cache: "no-store",
+                    signal: controller.signal,
+                  }
+                );
+
+                if (fallbackResponse.ok) {
+                  const fallbackData = await fallbackResponse.json();
+                  setLastFmResults(fallbackData.tracks ?? []);
+                }
+              } catch (fallbackError) {
+                if (
+                  !(fallbackError instanceof DOMException) ||
+                  fallbackError.name !== "AbortError"
+                ) {
+                  console.error("Last.fm search fallback failed:", fallbackError);
+                }
+              } finally {
+                if (!controller.signal.aborted) {
+                  setSearchingLastFm(false);
+                }
+              }
+            }
 
             setSpotifySearchError(
               err instanceof Error
@@ -1108,10 +1196,44 @@ export default function Home() {
       sortMode,
     ]);
 
+  const cachedSearchResults =
+    useMemo(() => {
+      const query =
+        normalizeSearchText(search);
+
+      if (!query) {
+        return [];
+      }
+
+      return tracks.filter((track) => {
+        const searchableText =
+          normalizeSearchText(
+            `${track.name} ${track.artist} ${track.album}`
+          );
+
+        return searchableText.includes(query);
+      });
+    }, [search, tracks]);
+
   const visibleTracks =
     search.trim()
-      ? spotifyResults
+      ? spotifySearchError
+        ? cachedSearchResults.length > 0
+          ? cachedSearchResults
+          : lastFmResults
+        : spotifyResults
       : libraryTracks;
+
+  const showingLibrarySearchFallback =
+    Boolean(search.trim()) &&
+    Boolean(spotifySearchError) &&
+    cachedSearchResults.length > 0;
+
+  const showingLastFmSearchFallback =
+    Boolean(search.trim()) &&
+    Boolean(spotifySearchError) &&
+    cachedSearchResults.length === 0 &&
+    lastFmResults.length > 0;
 
   const libraryIds =
     useMemo(
@@ -1479,7 +1601,11 @@ export default function Home() {
                   <div>
                     <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-600">
                       {search
-                        ? "Spotify"
+                        ? showingLibrarySearchFallback
+                          ? "Saved library"
+                          : showingLastFmSearchFallback
+                            ? "Last.fm matches"
+                          : "Spotify"
                         : librarySkipped
                           ? "Library skipped"
                           : "Your library"}
@@ -1488,8 +1614,14 @@ export default function Home() {
                     <h2 className="mt-2 text-4xl font-bold tracking-tight">
                       {search
                         ? searchingSpotify
-                          ? "Searching Spotify..."
-                          : "Spotify results"
+                          ? searchingLastFm
+                            ? "Searching Last.fm..."
+                            : "Searching Spotify..."
+                          : showingLibrarySearchFallback
+                            ? "Saved library matches"
+                            : showingLastFmSearchFallback
+                              ? "Last.fm matches"
+                            : "Spotify results"
                         : librarySkipped
                           ? "Search for songs you love"
                           : "Songs you love"}
@@ -1664,6 +1796,18 @@ export default function Home() {
                     }
                   </p>
 
+                  {showingLibrarySearchFallback && (
+                    <p className="mt-2 text-zinc-500">
+                      Showing matching songs from your saved library. Select a match to build an Echo.
+                    </p>
+                  )}
+
+                  {showingLastFmSearchFallback && (
+                    <p className="mt-2 text-zinc-500">
+                      Found through Last.fm and matched to Spotify, so these songs are ready to use in your Echo.
+                    </p>
+                  )}
+
                   {(!connected ||
                     spotifySearchNeedsConnection) && (
                     <a
@@ -1821,7 +1965,11 @@ export default function Home() {
                   <div className="py-24 text-center">
                     <p className="font-semibold text-zinc-500">
                       {search
-                        ? "No Spotify results found."
+                        ? spotifySearchError
+                          ? tracks.length > 0
+                            ? "No matching songs found in your saved library or Last.fm."
+                            : "Spotify search failed and no Last.fm matches are available."
+                          : "No Spotify results found."
                         : librarySkipped
                           ? "Search Spotify above to choose your first song."
                           : genresLoading
