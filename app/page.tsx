@@ -84,6 +84,12 @@ export default function Home() {
   const [error, setError] =
     useState("");
 
+  const [libraryLoadFailed, setLibraryLoadFailed] =
+    useState(false);
+
+  const [librarySkipped, setLibrarySkipped] =
+    useState(false);
+
   /*
    * GLOBAL SEARCH
    */
@@ -99,6 +105,12 @@ export default function Home() {
     searchingSpotify,
     setSearchingSpotify,
   ] = useState(false);
+
+  const [spotifySearchError, setSpotifySearchError] =
+    useState("");
+
+  const [spotifySearchNeedsConnection, setSpotifySearchNeedsConnection] =
+    useState(false);
 
   /*
    * SEEDS
@@ -149,6 +161,9 @@ export default function Home() {
   const genresStarted =
     useRef(false);
 
+  const libraryLoadController =
+    useRef<AbortController | null>(null);
+
   /*
    * LOAD LIBRARY ONCE
    */
@@ -192,6 +207,8 @@ export default function Home() {
     if (!query) {
       setSpotifyResults([]);
       setSearchingSpotify(false);
+      setSpotifySearchError("");
+      setSpotifySearchNeedsConnection(false);
 
       return;
     }
@@ -205,6 +222,9 @@ export default function Home() {
           setSearchingSpotify(true);
 
           try {
+            setSpotifySearchError("");
+            setSpotifySearchNeedsConnection(false);
+
             const response =
               await fetch(
                 `/api/spotify/search?q=${encodeURIComponent(
@@ -221,12 +241,18 @@ export default function Home() {
               await response.json();
 
             if (!response.ok) {
+              if (response.status === 401) {
+                setSpotifySearchNeedsConnection(true);
+              }
+
               throw new Error(
-                data.error ||
-                  "Spotify search failed."
+                response.status === 401
+                  ? "Connect Spotify to search songs and build blends."
+                  : "Spotify search failed. Please try again."
               );
             }
 
+            setConnected(true);
             setSpotifyResults(
               data.tracks ?? []
             );
@@ -242,6 +268,11 @@ export default function Home() {
             console.error(err);
 
             setSpotifyResults([]);
+            setSpotifySearchError(
+              err instanceof Error
+                ? err.message
+                : "Spotify search failed."
+            );
           } finally {
             if (
               !controller.signal
@@ -268,6 +299,7 @@ export default function Home() {
   async function loadLibrary() {
     setLoading(true);
     setError("");
+    setLibraryLoadFailed(false);
   
     /*
      * Use cached library first.
@@ -327,6 +359,8 @@ export default function Home() {
      */
     let offset = 0;
     let allTracks: Track[] = [];
+    const controller = new AbortController();
+    libraryLoadController.current = controller;
   
     try {
       while (true) {
@@ -335,6 +369,7 @@ export default function Home() {
             `/api/liked?offset=${offset}`,
             {
               cache: "no-store",
+              signal: controller.signal,
             }
           );
   
@@ -343,8 +378,14 @@ export default function Home() {
         ) {
           setConnected(false);
           setTracks([]);
+          setLibraryLoadFailed(true);
+          setError("Spotify couldn't load your library.");
           return;
         }
+
+        // A non-401 response means Spotify accepted the session, even if
+        // the library request itself is rate limited or unavailable.
+        setConnected(true);
   
         const data =
           await response.json();
@@ -367,8 +408,6 @@ export default function Home() {
               `Spotify library request failed: ${response.status}`
           );
         }
-  
-        setConnected(true);
   
         setTotalCount(
           data.total
@@ -422,7 +461,16 @@ export default function Home() {
         Date.now().toString()
       );
     } catch (err) {
+      if (
+        err instanceof DOMException &&
+        err.name === "AbortError"
+      ) {
+        return;
+      }
+
       console.error(err);
+
+      setLibraryLoadFailed(true);
   
       setError(
         err instanceof Error
@@ -430,8 +478,22 @@ export default function Home() {
           : "Echo had trouble loading your Spotify library."
       );
     } finally {
+      if (libraryLoadController.current === controller) {
+        libraryLoadController.current = null;
+      }
+
       setLoading(false);
     }
+  }
+
+  function continueWithoutLoading() {
+    libraryLoadController.current?.abort();
+    setLibrarySkipped(true);
+    setLibraryLoadFailed(false);
+    setTracks([]);
+    setLoadedCount(0);
+    setTotalCount(0);
+    setError("");
   }
 
   /*
@@ -786,11 +848,17 @@ export default function Home() {
           </button>
 
           <div className="flex items-center gap-7">
-            {connected && (
+            {connected && !librarySkipped && (
               <span className="hidden text-sm text-zinc-600 sm:block">
                 {loading
                   ? `${loadedCount.toLocaleString()} / ${totalCount.toLocaleString()}`
                   : `${tracks.length.toLocaleString()} songs`}
+              </span>
+            )}
+
+            {librarySkipped && (
+              <span className="hidden text-sm text-zinc-600 sm:block">
+                Library skipped
               </span>
             )}
 
@@ -829,8 +897,57 @@ export default function Home() {
         </section>
 
         {/* NOT CONNECTED */}
+        {!loading && libraryLoadFailed && (
+          <section className="mb-8 flex flex-col gap-6 rounded-[30px] border border-white/[0.07] bg-[#111111] p-8 md:flex-row md:items-center md:justify-between md:p-10">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">
+                Your library couldn’t load.
+              </h2>
+
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
+                {connected
+                  ? "You can still search Spotify and build a blend from songs you choose."
+                  : "Spotify connection is needed for catalog search and blend building. You can still continue without loading your library."}
+              </p>
+            </div>
+
+            <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
+              {!connected && (
+                <a
+                  href="/api/spotify/login"
+                  className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/[0.12] px-6 font-semibold text-white transition hover:bg-white/[0.06]"
+                >
+                  Connect Spotify
+                </a>
+              )}
+
+              <button
+                type="button"
+                onClick={continueWithoutLoading}
+                className="min-h-12 rounded-full bg-[#1DB954] px-6 font-bold text-black transition hover:bg-[#22cf63]"
+              >
+                Continue without loading
+              </button>
+            </div>
+          </section>
+        )}
+
+        {loading && !connected && !librarySkipped && (
+          <div className="mb-8 flex justify-end">
+            <button
+              type="button"
+              onClick={continueWithoutLoading}
+              className="rounded-full border border-white/[0.1] px-5 py-2.5 text-sm font-semibold text-zinc-400 transition hover:border-white/[0.2] hover:text-white"
+            >
+              Continue without loading
+            </button>
+          </div>
+        )}
+
         {!loading &&
-          !connected && (
+          !connected &&
+          !libraryLoadFailed &&
+          !librarySkipped && (
             <section className="mb-20 rounded-[30px] border border-white/[0.07] bg-[#111111] p-8 md:p-12">
               <h2 className="text-4xl font-bold tracking-tight">
                 Open up your library.
@@ -850,7 +967,7 @@ export default function Home() {
             </section>
           )}
 
-        {connected && (
+        {(connected || librarySkipped) && (
           <>
             {/* SEARCH BAR */}
             <section className="sticky top-0 z-20 -mx-6 border-y border-white/[0.06] bg-[#070707]/90 px-6 py-5 backdrop-blur-xl md:-mx-10 md:px-10 lg:-mx-14 lg:px-14">
@@ -882,6 +999,7 @@ export default function Home() {
 
             {/* LIBRARY LOAD BAR */}
             {loading &&
+              !librarySkipped &&
               !search && (
                 <section className="py-8">
                   <div className="h-[3px] overflow-hidden rounded-full bg-white/[0.07]">
@@ -910,6 +1028,18 @@ export default function Home() {
                 </section>
               )}
 
+            {loading && !librarySkipped && (
+              <div className="-mt-5 flex justify-end pb-5">
+                <button
+                  type="button"
+                  onClick={continueWithoutLoading}
+                  className="rounded-full border border-white/[0.1] px-5 py-2.5 text-sm font-semibold text-zinc-400 transition hover:border-white/[0.2] hover:text-white"
+                >
+                  Continue without loading
+                </button>
+              </div>
+            )}
+
             {/* TRACK BROWSER */}
             <section className="py-14">
               <div className="mb-8">
@@ -918,6 +1048,8 @@ export default function Home() {
                     <p className="text-sm font-semibold uppercase tracking-[0.18em] text-zinc-600">
                       {search
                         ? "Spotify"
+                        : librarySkipped
+                        ? "Library skipped"
                         : "Your library"}
                     </p>
 
@@ -926,6 +1058,8 @@ export default function Home() {
                         ? searchingSpotify
                           ? "Searching Spotify..."
                           : "Spotify results"
+                        : librarySkipped
+                        ? "Search for songs you love"
                         : "Songs you love"}
                     </h2>
                   </div>
@@ -943,7 +1077,7 @@ export default function Home() {
                 </div>
 
                 {/* LIBRARY CONTROLS */}
-                {!search && (
+                {!search && !librarySkipped && (
                   <div className="mt-7 space-y-5">
                     {/* GENRE FILTERS */}
                     <div className="flex flex-wrap gap-2">
@@ -1059,7 +1193,27 @@ export default function Home() {
                     )}
                   </div>
                 )}
+
+                {!search && librarySkipped && (
+                  <p className="mt-4 max-w-xl text-sm leading-6 text-zinc-500">
+                    Search Spotify to choose up to five songs, then build a blend around them.
+                  </p>
+                )}
               </div>
+
+              {spotifySearchError && (
+                <div className="mb-6 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-sm text-zinc-300">
+                  <p>{spotifySearchError}</p>
+                  {(!connected || spotifySearchNeedsConnection) && (
+                    <a
+                      href="/api/spotify/login"
+                      className="mt-3 inline-flex font-semibold text-[#1DB954] transition hover:text-[#22cf63]"
+                    >
+                      Connect Spotify
+                    </a>
+                  )}
+                </div>
+              )}
 
               {/* SEARCH LOADER */}
               {search &&
@@ -1194,6 +1348,8 @@ export default function Home() {
                     <p className="font-semibold text-zinc-500">
                       {search
                         ? "No Spotify results found."
+                        : librarySkipped
+                        ? "Search Spotify above to choose your first song."
                         : genresLoading
                         ? "Echo is still sorting this category."
                         : "No songs found in this category."}
@@ -1204,11 +1360,6 @@ export default function Home() {
           </>
         )}
 
-        {error && (
-          <p className="pb-10 text-sm text-red-400">
-            {error}
-          </p>
-        )}
       </div>
 
       {/* SEED TRAY */}

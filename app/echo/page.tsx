@@ -116,11 +116,16 @@ export default function EchoPage() {
       setSeeds(parsedSeeds);
       setLibrary(parsedLibrary);
 
+      const initialLibraryPercent =
+        parsedLibrary.length > 0 ? 70 : 0;
+
+      setLibraryPercent(initialLibraryPercent);
+
       generateEcho(
         parsedSeeds,
         parsedLibrary,
         25,
-        70,
+        initialLibraryPercent,
         true,
         true
       );
@@ -145,6 +150,9 @@ export default function EchoPage() {
     setSavedSpotifyUrl(null);
 
     try {
+      const hasLibraryTracks = libraryTracks.length > 0;
+      const includeNewMusic = hasLibraryTracks ? discovery : true;
+
       const response = await fetch("/api/echo", {
         method: "POST",
 
@@ -161,8 +169,12 @@ export default function EchoPage() {
                 size - seedTracks.length
               )
             : size,
-          libraryPercent: discovery ? percent : 100,
-          includeDiscovery: discovery,
+          libraryPercent: includeNewMusic
+            ? hasLibraryTracks
+              ? percent
+              : 0
+            : 100,
+          includeDiscovery: includeNewMusic,
           includeSeeds: seedInclusion,
         }),
       });
@@ -322,7 +334,9 @@ export default function EchoPage() {
 
   const likedPercent =
     includeDiscovery
-      ? libraryPercent
+      ? library.length > 0
+        ? libraryPercent
+        : 0
       : 100;
 
   const discoveryPercent =
@@ -391,8 +405,9 @@ export default function EchoPage() {
           </h1>
 
           <p className="mt-5 max-w-2xl text-lg leading-8 text-zinc-500">
-            Adjust the balance between songs you already love and
-            music you haven't discovered yet.
+            {library.length > 0
+              ? "Adjust the balance between songs you already love and music you haven't discovered yet."
+              : "Your library wasn't loaded, so this blend will use your chosen songs and new music from Spotify."}
           </p>
 
           {/* SEEDS */}
@@ -641,13 +656,14 @@ export default function EchoPage() {
               <div className="mt-8 border-t border-white/[0.07] pt-8">
                 <button
                   type="button"
+                  disabled={library.length === 0}
                   onClick={() =>
                     setIncludeDiscovery(
                       (current) =>
                         !current
                     )
                   }
-                  className="flex w-full items-center justify-between text-left"
+                  className="flex w-full items-center justify-between text-left disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <div className="pr-6">
                     <p className="font-semibold">
@@ -712,8 +728,8 @@ export default function EchoPage() {
                   min="0"
                   max="100"
                   step="10"
-                  value={libraryPercent}
-                  disabled={!includeDiscovery}
+                  value={library.length > 0 ? libraryPercent : 0}
+                  disabled={!includeDiscovery || library.length === 0}
                   onChange={(event) =>
                     setLibraryPercent(
                       Number(
