@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import EchoLogo from "@/components/EchoLogo";
 import {
   decodeSharedEchoFragment,
   type SharedEcho,
@@ -83,9 +84,7 @@ export default function SharedEchoPage() {
 
       <div className="relative mx-auto max-w-5xl px-6 pb-20 md:px-10">
         <nav className="flex h-24 items-center justify-between">
-          <Link href="/" className="text-2xl font-black tracking-[-0.05em]">
-            echo
-          </Link>
+          <EchoLogo />
           <Link href="/" className="text-sm text-zinc-500 transition hover:text-white">
             Create an Echo
           </Link>

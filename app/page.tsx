@@ -9,6 +9,7 @@ import {
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import EchoLogo from "@/components/EchoLogo";
 
 type Track = {
   id: string;
@@ -1265,16 +1266,7 @@ export default function Home() {
       <div className="relative mx-auto max-w-7xl px-6 md:px-10 lg:px-14">
         {/* NAV */}
         <nav className="flex h-24 items-center justify-between">
-          <button
-            onClick={() =>
-              router.push(
-                "/"
-              )
-            }
-            className="text-2xl font-black tracking-[-0.05em]"
-          >
-            echo
-          </button>
+          <EchoLogo />
 
           <div className="flex items-center gap-7">
             {connected &&

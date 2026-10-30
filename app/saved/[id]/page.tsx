@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import EchoLogo from "@/components/EchoLogo";
 import {
   SPOTIFY_PLAYLISTS_ENABLED,
   SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
@@ -217,12 +218,7 @@ function SavedEchoContent() {
       <div className="relative mx-auto max-w-6xl px-6 pb-24 md:px-10">
         {/* NAV */}
         <nav className="flex h-24 items-center justify-between">
-          <button
-            onClick={() => router.push("/")}
-            className="text-2xl font-black tracking-[-0.05em]"
-          >
-            echo
-          </button>
+          <EchoLogo />
 
           <div className="flex items-center gap-7 text-sm">
             <button
