@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import ShareEchoButton from "@/components/ShareEchoButton";
 
 type Track = {
@@ -38,7 +38,17 @@ type SavedEcho = {
 };
 
 export default function EchoPage() {
+  return (
+    <Suspense fallback={<EchoLoading />}>
+      <EchoContent />
+    </Suspense>
+  );
+}
+
+function EchoContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const savedEchoId = searchParams.get("saved");
 
   const [seeds, setSeeds] = useState<Track[]>([]);
   const [library, setLibrary] = useState<Track[]>([]);
@@ -61,6 +71,9 @@ export default function EchoPage() {
   const [finding, setFinding] = useState(true);
   const [savingSpotify, setSavingSpotify] = useState(false);
   const [savingEcho, setSavingEcho] = useState(false);
+  const [activeSavedEchoId, setActiveSavedEchoId] = useState<string | null>(
+    null
+  );
 
   const [error, setError] = useState("");
 
@@ -102,6 +115,76 @@ export default function EchoPage() {
   ]);
 
   useEffect(() => {
+    if (savedEchoId) {
+      const rawSavedEchoes = localStorage.getItem("echoSavedPlaylists");
+
+      try {
+        const savedEchoes: SavedEcho[] = rawSavedEchoes
+          ? JSON.parse(rawSavedEchoes)
+          : [];
+        const savedEcho = savedEchoes.find(
+          (echo) => echo.id === savedEchoId
+        );
+
+        if (!savedEcho) {
+          router.replace("/saved");
+          return;
+        }
+
+        const savedTracks = Array.isArray(savedEcho.tracks)
+          ? savedEcho.tracks.map((track) => ({
+              ...track,
+              source:
+                track.source === "seed" || track.source === "library"
+                  ? track.source
+                  : "discovery",
+              echoScore: Number.isFinite(track.echoScore)
+                ? track.echoScore
+                : 0,
+              matchedSeeds: Number.isFinite(track.matchedSeeds)
+                ? track.matchedSeeds
+                : 0,
+            }))
+          : [];
+        const includedSeedTracks = savedTracks.filter(
+          (track) => track.source === "seed"
+        );
+        const includedSeedIds = new Set(
+          includedSeedTracks.map((track) => track.id)
+        );
+        const savedSeedMetadata = Array.isArray(savedEcho.seeds)
+          ? savedEcho.seeds.filter((track) => includedSeedIds.has(track.id))
+          : [];
+        const savedSeeds = includedSeedTracks.map(
+          (track) =>
+            savedSeedMetadata.find((seed) => seed.id === track.id) ?? track
+        );
+
+        setSeeds(savedSeeds);
+        setLibrary([]);
+        setRecommendations(
+          savedTracks.filter((track) => track.source !== "seed")
+        );
+        setRemovedTrackIds(new Set());
+        setRemovedTracks([]);
+        setMix(null);
+        setPlaylistName(savedEcho.name || "My Echo");
+        setPlaylistSize(Math.min(50, Math.max(10, savedTracks.length)));
+        setIncludeSeeds(includedSeedTracks.length > 0);
+        setIncludeDiscovery(
+          savedTracks.some((track) => track.source === "discovery")
+        );
+        setActiveSavedEchoId(savedEcho.id);
+        setFinding(false);
+      } catch (err) {
+        console.error(err);
+        router.replace("/saved");
+      }
+
+      return;
+    }
+
+    setActiveSavedEchoId(null);
     const savedSeeds = sessionStorage.getItem("echoSeeds");
     const savedLibrary = sessionStorage.getItem("echoLibrary");
 
@@ -134,7 +217,7 @@ export default function EchoPage() {
       console.error(err);
       router.push("/");
     }
-  }, []);
+  }, [savedEchoId, router]);
 
   async function generateEcho(
     seedTracks = seeds,
@@ -253,24 +336,28 @@ export default function EchoPage() {
         existing = [];
       }
 
+      const existingSavedEcho = existing.find(
+        (echo) => echo.id === activeSavedEchoId
+      );
       const savedPlaylist: SavedEcho = {
-        id: crypto.randomUUID(),
+        id: existingSavedEcho?.id ?? crypto.randomUUID(),
 
         name:
           playlistName.trim() ||
           "My Echo",
 
         createdAt:
-          new Date().toISOString(),
+          existingSavedEcho?.createdAt ?? new Date().toISOString(),
 
         tracks: results,
         seeds,
       };
 
-      const updated = [
-        savedPlaylist,
-        ...existing,
-      ];
+      const updated = existingSavedEcho
+        ? existing.map((echo) =>
+            echo.id === existingSavedEcho.id ? savedPlaylist : echo
+          )
+        : [savedPlaylist, ...existing];
 
       localStorage.setItem(
         "echoSavedPlaylists",
@@ -420,9 +507,11 @@ export default function EchoPage() {
           </h1>
 
           <p className="mt-5 max-w-2xl text-lg leading-8 text-zinc-500">
-            {library.length > 0
-              ? "Adjust the balance between songs you already love and music you haven't discovered yet."
-              : "Your library wasn't loaded, so this blend will use your chosen songs and new music from Spotify."}
+            {activeSavedEchoId
+              ? "This is the Echo you saved. Your songs are ready to revisit or send to Spotify."
+              : library.length > 0
+                ? "Adjust the balance between songs you already love and music you haven't discovered yet."
+                : "Your library wasn't loaded, so this blend will use your chosen songs and new music from Spotify."}
           </p>
 
           {/* SEEDS */}
@@ -862,11 +951,16 @@ export default function EchoPage() {
               >
                 {savingEcho
                   ? "Saving..."
-                  : "Save to Echo"}
+                  : activeSavedEchoId
+                    ? "Save changes"
+                    : "Save to Echo"}
               </button>
 
               {/* SHARE */}
               <ShareEchoButton
+                playlistName={playlistName.trim() || "My Echo"}
+                tracks={results}
+                disabled={finding || results.length === 0}
                 className="mt-3 min-h-14 w-full rounded-full border border-white/[0.1] font-bold transition hover:bg-white/[0.06] disabled:opacity-40"
               />
 
@@ -898,6 +992,17 @@ export default function EchoPage() {
             </div>
           </aside>
         </section>
+      </div>
+    </main>
+  );
+}
+
+function EchoLoading() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#070707] text-white">
+      <div className="text-center">
+        <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-zinc-800 border-t-[#1DB954]" />
+        <p className="mt-5 font-semibold">Loading your Echo...</p>
       </div>
     </main>
   );

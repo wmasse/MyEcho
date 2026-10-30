@@ -103,7 +103,7 @@ export default function SavedPage() {
   }
 
   function openPlaylist(id: string) {
-    router.push(`/saved/${id}`);
+    router.push(`/echo?saved=${encodeURIComponent(id)}`);
   }
 
   async function sendToSpotify(playlist: SavedEcho) {

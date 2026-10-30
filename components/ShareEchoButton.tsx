@@ -4,10 +4,16 @@ import { useState } from "react";
 
 type Props = {
   className?: string;
+  playlistName: string;
+  tracks: { name: string; artist: string }[];
+  disabled?: boolean;
 };
 
 export default function ShareEchoButton({
   className = "",
+  playlistName,
+  tracks,
+  disabled = false,
 }: Props) {
   const [status, setStatus] =
     useState<
@@ -16,9 +22,7 @@ export default function ShareEchoButton({
       "copied"
     >("idle");
 
-  async function copyFallback(
-    text: string
-  ) {
+  async function copyFallback(text: string) {
     try {
       if (
         navigator.clipboard
@@ -42,17 +46,21 @@ export default function ShareEchoButton({
       // Fall through to manual copy.
     }
 
-    window.prompt(
-      "Copy the Echo website link:",
-      text
-    );
+    window.prompt("Copy this playlist:", text);
 
     setStatus("idle");
   }
 
   async function shareEcho() {
-    const url = new URL("/", window.location.origin).toString();
-    const text = "Make your own Echo playlist with Echo.";
+    if (tracks.length === 0) return;
+
+    const playlistText = [
+      playlistName,
+      "",
+      ...tracks.map(
+        (track, index) => `${index + 1}. ${track.name} — ${track.artist}`
+      ),
+    ].join("\n");
 
     setStatus("sharing");
 
@@ -68,9 +76,8 @@ export default function ShareEchoButton({
     ) {
       try {
         await navigator.share({
-          title: "Echo",
-          text,
-          url,
+          title: playlistName,
+          text: playlistText,
         });
 
         setStatus("idle");
@@ -97,21 +104,21 @@ export default function ShareEchoButton({
       }
     }
 
-    await copyFallback(`${text} ${url}`);
+    await copyFallback(playlistText);
   }
 
   return (
     <button
       type="button"
       onClick={shareEcho}
-      disabled={status === "sharing"}
+      disabled={disabled || status === "sharing"}
       className={className}
     >
       {status === "sharing"
         ? "Sharing..."
         : status === "copied"
         ? "Copied!"
-        : "Share Echo"}
+        : "Share playlist"}
     </button>
   );
 }
