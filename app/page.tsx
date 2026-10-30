@@ -20,11 +20,7 @@ type Track = {
   addedAt?: string;
 };
 
-type LibraryResponse = {
-  tracks: Track[];
-  total: number;
-  nextOffset: number | null;
-};
+type GenreMap = Record<string, Genre>;
 
 const GENRES = [
   "All",
@@ -40,6 +36,13 @@ const GENRES = [
   "Jazz / Classical",
   "Other",
 ] as const;
+
+type Genre = (typeof GENRES)[number];
+
+type SortMode =
+  | "recent"
+  | "title"
+  | "artist";
 
 type PopularAlbum = {
   id: string;
@@ -103,9 +106,20 @@ const POPULAR_ALBUMS: PopularAlbum[] = [
 function randomPopularAlbums() {
   const albums = [...POPULAR_ALBUMS];
 
-  for (let index = albums.length - 1; index > 0; index -= 1) {
-    const randomIndex = Math.floor(Math.random() * (index + 1));
-    [albums[index], albums[randomIndex]] = [
+  for (
+    let index = albums.length - 1;
+    index > 0;
+    index -= 1
+  ) {
+    const randomIndex =
+      Math.floor(
+        Math.random() * (index + 1)
+      );
+
+    [
+      albums[index],
+      albums[randomIndex],
+    ] = [
       albums[randomIndex],
       albums[index],
     ];
@@ -114,64 +128,84 @@ function randomPopularAlbums() {
   return albums.slice(0, 4);
 }
 
-type Genre = (typeof GENRES)[number];
-
-type SortMode =
-  | "recent"
-  | "title"
-  | "artist";
-
-type GenreMap = Record<string, Genre>;
-
-function primaryArtist(artist: string) {
+function primaryArtist(
+  artist: string
+) {
   return artist
     .split(",")[0]
     .trim();
 }
 
-function artistKey(artist: string) {
-  return primaryArtist(artist)
-    .toLowerCase();
+function artistKey(
+  artist: string
+) {
+  return primaryArtist(
+    artist
+  ).toLowerCase();
 }
 
 export default function Home() {
   const router = useRouter();
 
-  const [heroAlbums, setHeroAlbums] =
-    useState<PopularAlbum[]>(POPULAR_ALBUMS.slice(0, 4));
+  const [
+    heroAlbums,
+    setHeroAlbums,
+  ] = useState<PopularAlbum[]>(
+    POPULAR_ALBUMS.slice(0, 4)
+  );
 
   /*
    * SPOTIFY LIBRARY
    */
-  const [tracks, setTracks] =
-    useState<Track[]>([]);
+  const [
+    tracks,
+    setTracks,
+  ] = useState<Track[]>([]);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-  const [connected, setConnected] =
-    useState<boolean | null>(null);
+  const [
+    connected,
+    setConnected,
+  ] = useState<boolean | null>(
+    null
+  );
 
-  const [loadedCount, setLoadedCount] =
-    useState(0);
+  const [
+    loadedCount,
+    setLoadedCount,
+  ] = useState(0);
 
-  const [totalCount, setTotalCount] =
-    useState(0);
+  const [
+    totalCount,
+    setTotalCount,
+  ] = useState(0);
 
-  const [error, setError] =
-    useState("");
+  const [
+    error,
+    setError,
+  ] = useState("");
 
-  const [libraryLoadFailed, setLibraryLoadFailed] =
-    useState(false);
+  const [
+    libraryLoadFailed,
+    setLibraryLoadFailed,
+  ] = useState(false);
 
-  const [librarySkipped, setLibrarySkipped] =
-    useState(false);
+  const [
+    librarySkipped,
+    setLibrarySkipped,
+  ] = useState(false);
 
   /*
    * GLOBAL SEARCH
    */
-  const [search, setSearch] =
-    useState("");
+  const [
+    search,
+    setSearch,
+  ] = useState("");
 
   const [
     spotifyResults,
@@ -183,17 +217,23 @@ export default function Home() {
     setSearchingSpotify,
   ] = useState(false);
 
-  const [spotifySearchError, setSpotifySearchError] =
-    useState("");
+  const [
+    spotifySearchError,
+    setSpotifySearchError,
+  ] = useState("");
 
-  const [spotifySearchNeedsConnection, setSpotifySearchNeedsConnection] =
-    useState(false);
+  const [
+    spotifySearchNeedsConnection,
+    setSpotifySearchNeedsConnection,
+  ] = useState(false);
 
   /*
    * SEEDS
    */
-  const [selected, setSelected] =
-    useState<Track[]>([]);
+  const [
+    selected,
+    setSelected,
+  ] = useState<Track[]>([]);
 
   /*
    * GENRES
@@ -226,8 +266,12 @@ export default function Home() {
   /*
    * SORT
    */
-  const [sortMode, setSortMode] =
-    useState<SortMode>("recent");
+  const [
+    sortMode,
+    setSortMode,
+  ] = useState<SortMode>(
+    "recent"
+  );
 
   /*
    * EFFECT GUARDS
@@ -239,30 +283,37 @@ export default function Home() {
     useRef(false);
 
   const libraryLoadController =
-    useRef<AbortController | null>(null);
+    useRef<AbortController | null>(
+      null
+    );
 
   /*
-   * LOAD LIBRARY ONCE
+   * LOAD CACHE ONCE
+   *
+   * IMPORTANT:
+   * This does NOT contact Spotify.
    */
   useEffect(() => {
-    if (libraryStarted.current) {
+    if (
+      libraryStarted.current
+    ) {
       return;
     }
 
-    libraryStarted.current = true;
+    libraryStarted.current =
+      true;
 
-    loadLibrary();
+    loadCachedLibrary();
   }, []);
 
   useEffect(() => {
-    setHeroAlbums(randomPopularAlbums());
+    setHeroAlbums(
+      randomPopularAlbums()
+    );
   }, []);
 
   /*
    * LOAD / BUILD GENRE CACHE
-   *
-   * This only starts after the entire
-   * Spotify library has finished loading.
    */
   useEffect(() => {
     if (
@@ -273,9 +324,10 @@ export default function Home() {
       return;
     }
 
-    genresStarted.current = true;
+    genresStarted.current =
+      true;
 
-    loadGenres();
+    void loadGenres();
   }, [loading, tracks]);
 
   /*
@@ -287,9 +339,15 @@ export default function Home() {
 
     if (!query) {
       setSpotifyResults([]);
-      setSearchingSpotify(false);
-      setSpotifySearchError("");
-      setSpotifySearchNeedsConnection(false);
+      setSearchingSpotify(
+        false
+      );
+      setSpotifySearchError(
+        ""
+      );
+      setSpotifySearchNeedsConnection(
+        false
+      );
 
       return;
     }
@@ -300,11 +358,18 @@ export default function Home() {
     const timeout =
       setTimeout(
         async () => {
-          setSearchingSpotify(true);
+          setSearchingSpotify(
+            true
+          );
 
           try {
-            setSpotifySearchError("");
-            setSpotifySearchNeedsConnection(false);
+            setSpotifySearchError(
+              ""
+            );
+
+            setSpotifySearchNeedsConnection(
+              false
+            );
 
             const response =
               await fetch(
@@ -312,7 +377,8 @@ export default function Home() {
                   query
                 )}`,
                 {
-                  cache: "no-store",
+                  cache:
+                    "no-store",
                   signal:
                     controller.signal,
                 }
@@ -322,33 +388,46 @@ export default function Home() {
               await response.json();
 
             if (!response.ok) {
-              if (response.status === 401) {
-                setSpotifySearchNeedsConnection(true);
+              if (
+                response.status ===
+                401
+              ) {
+                setSpotifySearchNeedsConnection(
+                  true
+                );
               }
 
               throw new Error(
-                response.status === 401
+                response.status ===
+                  401
                   ? "Connect Spotify to search songs and build blends."
                   : "Spotify search failed. Please try again."
               );
             }
 
             setConnected(true);
+
             setSpotifyResults(
               data.tracks ?? []
             );
           } catch (err) {
             if (
-              err instanceof DOMException &&
+              err instanceof
+                DOMException &&
               err.name ===
                 "AbortError"
             ) {
               return;
             }
 
-            console.error(err);
+            console.error(
+              err
+            );
 
-            setSpotifyResults([]);
+            setSpotifyResults(
+              []
+            );
+
             setSpotifySearchError(
               err instanceof Error
                 ? err.message
@@ -369,119 +448,169 @@ export default function Home() {
       );
 
     return () => {
-      clearTimeout(timeout);
+      clearTimeout(
+        timeout
+      );
       controller.abort();
     };
   }, [search]);
 
   /*
-   * LOAD LIKED SONGS
+   * LOAD CACHED LIBRARY
+   *
+   * Cache does not expire.
+   * No Spotify API request happens here.
    */
-  async function loadLibrary() {
+  function loadCachedLibrary() {
     setLoading(true);
+
     setError("");
-    setLibraryLoadFailed(false);
-  
-    /*
-     * Use cached library first.
-     */
+
+    setLibraryLoadFailed(
+      false
+    );
+
     try {
       const cached =
         localStorage.getItem(
           "echoSpotifyLibrary"
         );
-  
-      const cachedAt =
-        localStorage.getItem(
-          "echoSpotifyLibraryCachedAt"
+
+      if (cached) {
+        const cachedTracks: Track[] =
+          JSON.parse(cached);
+
+        setTracks(
+          cachedTracks
         );
-  
-      if (
-        cached &&
-        cachedAt
-      ) {
-        const age =
-          Date.now() -
-          Number(cachedAt);
-  
+
+        setLoadedCount(
+          cachedTracks.length
+        );
+
+        setTotalCount(
+          cachedTracks.length
+        );
+
+        setConnected(true);
+      } else {
+        setTracks([]);
+
+        setLoadedCount(0);
+
+        setTotalCount(0);
+
         /*
-         * Reuse library for 24 hours.
+         * We don't know yet whether
+         * Spotify is connected because
+         * we intentionally haven't
+         * contacted Spotify.
          */
-        const maxAge =
-          24 * 60 * 60 * 1000;
-  
-        if (age < maxAge) {
-          const cachedTracks: Track[] =
-            JSON.parse(cached);
-  
-          setTracks(cachedTracks);
-          setLoadedCount(
-            cachedTracks.length
-          );
-          setTotalCount(
-            cachedTracks.length
-          );
-          setConnected(true);
-          setLoading(false);
-  
-          return;
-        }
+        setConnected(null);
       }
     } catch (err) {
       console.error(
         "Library cache error:",
         err
       );
+
+      setTracks([]);
+      setLoadedCount(0);
+      setTotalCount(0);
+      setConnected(null);
+    } finally {
+      setLoading(false);
     }
-  
-    /*
-     * No valid cache:
-     * fetch the full Spotify library.
-     */
+  }
+
+  /*
+   * MANUAL LIBRARY REFRESH
+   *
+   * This is the only function here
+   * that calls /api/liked.
+   */
+  async function refreshLibrary() {
+    if (loading) {
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    setLibraryLoadFailed(
+      false
+    );
+
+    setLibrarySkipped(
+      false
+    );
+
     let offset = 0;
-    let allTracks: Track[] = [];
-    const controller = new AbortController();
-    libraryLoadController.current = controller;
-  
+
+    let allTracks: Track[] =
+      [];
+
+    const controller =
+      new AbortController();
+
+    libraryLoadController.current =
+      controller;
+
     try {
       while (true) {
         const response =
           await fetch(
             `/api/liked?offset=${offset}`,
             {
-              cache: "no-store",
-              signal: controller.signal,
+              cache:
+                "no-store",
+              signal:
+                controller.signal,
             }
           );
-  
-        if (
-          response.status === 401
-        ) {
-          setConnected(false);
-          setTracks([]);
-          setLibraryLoadFailed(true);
-          setError("Spotify couldn't load your library.");
-          return;
-        }
 
-        // A non-401 response means Spotify accepted the session, even if
-        // the library request itself is rate limited or unavailable.
-        setConnected(true);
-  
-        const data =
-          await response.json();
-  
         /*
-         * Spotify development quota exceeded.
+         * AUTH EXPIRED
          */
         if (
-          response.status === 429
+          response.status ===
+          401
         ) {
+          if (
+            tracks.length ===
+            0
+          ) {
+            setConnected(
+              false
+            );
+
+            setLibraryLoadFailed(
+              true
+            );
+          }
+
           throw new Error(
-            "Spotify's development quota has been reached. Your cached library will be used when available."
+            "Spotify needs to be reconnected before your library can refresh."
           );
         }
-  
+
+        setConnected(true);
+
+        const data =
+          await response.json();
+
+        /*
+         * DEVELOPMENT QUOTA
+         */
+        if (
+          response.status ===
+          429
+        ) {
+          throw new Error(
+            "Spotify's development quota has been reached. Your existing cached library has not been changed."
+          );
+        }
+
         if (!response.ok) {
           throw new Error(
             data?.details ||
@@ -489,78 +618,151 @@ export default function Home() {
               `Spotify library request failed: ${response.status}`
           );
         }
-  
+
         setTotalCount(
           data.total
         );
-  
+
         allTracks = [
           ...allTracks,
-          ...data.tracks,
+          ...(data.tracks ??
+            []),
         ];
-  
-        setTracks([
-          ...allTracks,
-        ]);
-  
+
         setLoadedCount(
           allTracks.length
         );
-  
+
+        /*
+         * Show progress while refreshing.
+         */
+        setTracks([
+          ...allTracks,
+        ]);
+
         if (
           data.nextOffset ===
           null
         ) {
           break;
         }
-  
+
         offset =
           data.nextOffset;
-  
+
         /*
-         * Don't hammer Spotify.
+         * Small pause between pages.
          */
         await new Promise(
           (resolve) =>
             setTimeout(
               resolve,
-              250
+              300
             )
         );
       }
-  
+
       /*
-       * Cache completed library.
+       * ONLY overwrite the cache
+       * after the full refresh succeeds.
        */
       localStorage.setItem(
         "echoSpotifyLibrary",
-        JSON.stringify(allTracks)
+        JSON.stringify(
+          allTracks
+        )
       );
-  
+
       localStorage.setItem(
         "echoSpotifyLibraryCachedAt",
         Date.now().toString()
       );
+
+      setTracks(
+        allTracks
+      );
+
+      setLoadedCount(
+        allTracks.length
+      );
+
+      setTotalCount(
+        allTracks.length
+      );
+
+      /*
+       * Let genres process any new artists.
+       */
+      genresStarted.current =
+        false;
     } catch (err) {
       if (
-        err instanceof DOMException &&
-        err.name === "AbortError"
+        err instanceof
+          DOMException &&
+        err.name ===
+          "AbortError"
       ) {
         return;
       }
 
       console.error(err);
 
-      setLibraryLoadFailed(true);
-  
+      /*
+       * Restore old cache after
+       * any failed refresh.
+       */
+      try {
+        const cached =
+          localStorage.getItem(
+            "echoSpotifyLibrary"
+          );
+
+        if (cached) {
+          const cachedTracks: Track[] =
+            JSON.parse(cached);
+
+          setTracks(
+            cachedTracks
+          );
+
+          setLoadedCount(
+            cachedTracks.length
+          );
+
+          setTotalCount(
+            cachedTracks.length
+          );
+
+          setConnected(true);
+        } else {
+          setTracks([]);
+
+          setLoadedCount(0);
+
+          setTotalCount(0);
+
+          setLibraryLoadFailed(
+            true
+          );
+        }
+      } catch {
+        setLibraryLoadFailed(
+          true
+        );
+      }
+
       setError(
         err instanceof Error
           ? err.message
-          : "Echo had trouble loading your Spotify library."
+          : "Echo had trouble refreshing your Spotify library."
       );
     } finally {
-      if (libraryLoadController.current === controller) {
-        libraryLoadController.current = null;
+      if (
+        libraryLoadController.current ===
+        controller
+      ) {
+        libraryLoadController.current =
+          null;
       }
 
       setLoading(false);
@@ -569,26 +771,30 @@ export default function Home() {
 
   function continueWithoutLoading() {
     libraryLoadController.current?.abort();
-    setLibrarySkipped(true);
-    setLibraryLoadFailed(false);
+
+    setLibrarySkipped(
+      true
+    );
+
+    setLibraryLoadFailed(
+      false
+    );
+
     setTracks([]);
+
     setLoadedCount(0);
+
     setTotalCount(0);
+
     setError("");
   }
 
   /*
    * LOAD GENRES
-   *
-   * 1. Read cached artists immediately.
-   * 2. Find artists still missing.
-   * 3. Send them to one batch endpoint
-   *    in groups instead of one request
-   *    per artist.
-   * 4. Save results locally.
    */
   async function loadGenres() {
-    let cache: GenreMap = {};
+    let cache: GenreMap =
+      {};
 
     try {
       const saved =
@@ -611,10 +817,11 @@ export default function Home() {
     const uniqueArtists =
       Array.from(
         new Set(
-          tracks.map((track) =>
-            primaryArtist(
-              track.artist
-            )
+          tracks.map(
+            (track) =>
+              primaryArtist(
+                track.artist
+              )
           )
         )
       );
@@ -623,7 +830,9 @@ export default function Home() {
       uniqueArtists.filter(
         (artist) =>
           !cache[
-            artistKey(artist)
+            artistKey(
+              artist
+            )
           ]
       );
 
@@ -634,17 +843,21 @@ export default function Home() {
     if (
       missing.length === 0
     ) {
-      setGenresLoading(false);
+      setGenresLoading(
+        false
+      );
+
       return;
     }
 
-    setGenresLoading(true);
-    setGenresProcessed(0);
+    setGenresLoading(
+      true
+    );
 
-    /*
-     * Browser makes only one request
-     * for every 25 artists.
-     */
+    setGenresProcessed(
+      0
+    );
+
     const batchSize = 25;
 
     for (
@@ -672,7 +885,8 @@ export default function Home() {
 
               body:
                 JSON.stringify({
-                  artists: batch,
+                  artists:
+                    batch,
                 }),
             }
           );
@@ -695,7 +909,9 @@ export default function Home() {
 
           localStorage.setItem(
             "echoArtistGenres",
-            JSON.stringify(cache)
+            JSON.stringify(
+              cache
+            )
           );
         }
       } catch (err) {
@@ -713,12 +929,6 @@ export default function Home() {
         )
       );
 
-      /*
-       * Small pause between batches.
-       *
-       * Keeps Last.fm + local dev
-       * server happy.
-       */
       await new Promise(
         (resolve) =>
           setTimeout(
@@ -728,7 +938,9 @@ export default function Home() {
       );
     }
 
-    setGenresLoading(false);
+    setGenresLoading(
+      false
+    );
   }
 
   /*
@@ -740,10 +952,13 @@ export default function Home() {
     const alreadySelected =
       selected.some(
         (item) =>
-          item.id === track.id
+          item.id ===
+          track.id
       );
 
-    if (alreadySelected) {
+    if (
+      alreadySelected
+    ) {
       setSelected(
         (current) =>
           current.filter(
@@ -757,7 +972,8 @@ export default function Home() {
     }
 
     if (
-      selected.length >= 5
+      selected.length >=
+      5
     ) {
       return;
     }
@@ -777,7 +993,8 @@ export default function Home() {
       (current) =>
         current.filter(
           (track) =>
-            track.id !== id
+            track.id !==
+            id
         )
     );
   }
@@ -787,7 +1004,8 @@ export default function Home() {
    */
   function findEcho() {
     if (
-      selected.length === 0
+      selected.length ===
+      0
     ) {
       return;
     }
@@ -806,7 +1024,9 @@ export default function Home() {
       )
     );
 
-    router.push("/echo");
+    router.push(
+      "/echo"
+    );
   }
 
   /*
@@ -815,7 +1035,8 @@ export default function Home() {
   const libraryTracks =
     useMemo(() => {
       let result =
-        genreFilter === "All"
+        genreFilter ===
+        "All"
           ? [...tracks]
           : tracks.filter(
               (track) =>
@@ -828,7 +1049,8 @@ export default function Home() {
             );
 
       if (
-        sortMode === "title"
+        sortMode ===
+        "title"
       ) {
         result.sort(
           (a, b) =>
@@ -844,7 +1066,8 @@ export default function Home() {
       }
 
       if (
-        sortMode === "artist"
+        sortMode ===
+        "artist"
       ) {
         result.sort(
           (a, b) => {
@@ -859,7 +1082,8 @@ export default function Home() {
               );
 
             if (
-              artistCompare !== 0
+              artistCompare !==
+              0
             ) {
               return artistCompare;
             }
@@ -876,10 +1100,6 @@ export default function Home() {
         );
       }
 
-      /*
-       * "recent" preserves Spotify's
-       * Liked Songs ordering.
-       */
       return result;
     }, [
       tracks,
@@ -888,10 +1108,6 @@ export default function Home() {
       sortMode,
     ]);
 
-  /*
-   * Search results replace the library
-   * browser while searching.
-   */
   const visibleTracks =
     search.trim()
       ? spotifyResults
@@ -921,7 +1137,9 @@ export default function Home() {
         <nav className="flex h-24 items-center justify-between">
           <button
             onClick={() =>
-              router.push("/")
+              router.push(
+                "/"
+              )
             }
             className="text-2xl font-black tracking-[-0.05em]"
           >
@@ -929,18 +1147,39 @@ export default function Home() {
           </button>
 
           <div className="flex items-center gap-7">
-            {connected && !librarySkipped && (
-              <span className="hidden text-sm text-zinc-600 sm:block">
-                {loading
-                  ? `${loadedCount.toLocaleString()} / ${totalCount.toLocaleString()}`
-                  : `${tracks.length.toLocaleString()} songs`}
-              </span>
-            )}
+            {connected &&
+              !librarySkipped && (
+                <span className="hidden text-sm text-zinc-600 sm:block">
+                  {loading
+                    ? `${loadedCount.toLocaleString()} / ${totalCount.toLocaleString()}`
+                    : `${tracks.length.toLocaleString()} songs`}
+                </span>
+              )}
 
             {librarySkipped && (
               <span className="hidden text-sm text-zinc-600 sm:block">
                 Library skipped
               </span>
+            )}
+
+            {!librarySkipped && (
+              <button
+                type="button"
+                onClick={() => {
+                  void refreshLibrary();
+                }}
+                disabled={
+                  loading
+                }
+                className="text-sm text-zinc-500 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {loading
+                  ? "Refreshing..."
+                  : tracks.length >
+                      0
+                    ? "Refresh library"
+                    : "Load library"}
+              </button>
             )}
 
             <button
@@ -962,137 +1201,221 @@ export default function Home() {
             Your music, reorganized
           </p>
 
-          <h1 className="sr-only">Popular albums to inspire your next blend</h1>
+          <h1 className="sr-only">
+            Popular albums to inspire your next blend
+          </h1>
+
           <div
             aria-label="A random selection of popular album covers"
             role="list"
             className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-4 sm:gap-x-5 md:gap-x-7"
           >
-            {heroAlbums.map((album, index) => (
-              <article
-                key={album.id}
-                role="listitem"
-                className={`group min-w-0 ${index % 2 === 1 ? "sm:translate-y-5" : ""}`}
-              >
-                <div className="relative aspect-square overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#111111] shadow-[0_24px_80px_rgba(0,0,0,0.35)] transition duration-500 group-hover:-translate-y-1">
-                  <Image
-                    src={album.image}
-                    alt={`${album.name} by ${album.artist} album cover`}
-                    fill
-                    sizes="(max-width: 639px) 42vw, (max-width: 1279px) 22vw, 270px"
-                    className="object-cover"
-                  />
-                </div>
+            {heroAlbums.map(
+              (
+                album,
+                index
+              ) => (
+                <article
+                  key={
+                    album.id
+                  }
+                  role="listitem"
+                  className={`group min-w-0 ${
+                    index %
+                      2 ===
+                    1
+                      ? "sm:translate-y-5"
+                      : ""
+                  }`}
+                >
+                  <div className="relative aspect-square overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#111111] shadow-[0_24px_80px_rgba(0,0,0,0.35)] transition duration-500 group-hover:-translate-y-1">
+                    <Image
+                      src={
+                        album.image
+                      }
+                      alt={`${album.name} by ${album.artist} album cover`}
+                      fill
+                      sizes="(max-width: 639px) 42vw, (max-width: 1279px) 22vw, 270px"
+                      className="object-cover"
+                    />
+                  </div>
 
-                <p className="mt-3 truncate text-sm font-semibold text-white">
-                  {album.name}
-                </p>
-                <p className="mt-1 truncate text-sm text-zinc-500">
-                  {album.artist}
-                </p>
-              </article>
-            ))}
+                  <p className="mt-3 truncate text-sm font-semibold text-white">
+                    {
+                      album.name
+                    }
+                  </p>
+
+                  <p className="mt-1 truncate text-sm text-zinc-500">
+                    {
+                      album.artist
+                    }
+                  </p>
+                </article>
+              )
+            )}
           </div>
 
           <p className="mt-8 max-w-2xl text-lg leading-8 text-zinc-400 md:text-xl">
-            Pick up to five songs from anywhere on Spotify.
-            Echo builds a playlist around their shared sound.
+            Pick up to five
+            songs from anywhere
+            on Spotify. Echo
+            builds a playlist
+            around their shared
+            sound.
           </p>
         </section>
 
-        {/* NOT CONNECTED */}
-        {!loading && libraryLoadFailed && (
-          <section className="mb-8 flex flex-col gap-6 rounded-[30px] border border-white/[0.07] bg-[#111111] p-8 md:flex-row md:items-center md:justify-between md:p-10">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight">
-                Your library couldn’t load.
-              </h2>
+        {/* ERROR */}
+        {error && (
+          <section className="mb-8 rounded-[24px] border border-red-500/20 bg-red-500/[0.06] p-5">
+            <p className="text-sm text-red-400">
+              {error}
+            </p>
+          </section>
+        )}
 
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
-                {connected
-                  ? "You can still search Spotify and build a blend from songs you choose."
-                  : "Spotify connection is needed for catalog search and blend building. You can still continue without loading your library."}
-              </p>
-            </div>
+        {/* LIBRARY LOAD FAILED */}
+        {!loading &&
+          libraryLoadFailed && (
+            <section className="mb-8 flex flex-col gap-6 rounded-[30px] border border-white/[0.07] bg-[#111111] p-8 md:flex-row md:items-center md:justify-between md:p-10">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">
+                  Your library
+                  couldn’t load.
+                </h2>
 
-            <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
-              {!connected && (
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
+                  Your existing
+                  cached library
+                  will remain
+                  untouched. You
+                  can reconnect
+                  Spotify or
+                  continue without
+                  loading it.
+                </p>
+              </div>
+
+              <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
                 <a
                   href="/api/spotify/login"
                   className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/[0.12] px-6 font-semibold text-white transition hover:bg-white/[0.06]"
                 >
                   Connect Spotify
                 </a>
-              )}
 
-              <button
-                type="button"
-                onClick={continueWithoutLoading}
-                className="min-h-12 rounded-full bg-[#1DB954] px-6 font-bold text-black transition hover:bg-[#22cf63]"
-              >
-                Continue without loading
-              </button>
-            </div>
-          </section>
-        )}
-
-        {loading && !connected && !librarySkipped && (
-          <div className="mb-8 flex justify-end">
-            <button
-              type="button"
-              onClick={continueWithoutLoading}
-              className="rounded-full border border-white/[0.1] px-5 py-2.5 text-sm font-semibold text-zinc-400 transition hover:border-white/[0.2] hover:text-white"
-            >
-              Continue without loading
-            </button>
-          </div>
-        )}
-
-        {!loading &&
-          !connected &&
-          !libraryLoadFailed &&
-          !librarySkipped && (
-            <section className="mb-20 rounded-[30px] border border-white/[0.07] bg-[#111111] p-8 md:p-12">
-              <h2 className="text-4xl font-bold tracking-tight">
-                Open up your library.
-              </h2>
-
-              <p className="mt-4 max-w-xl text-lg text-zinc-400">
-                Connect Spotify so Echo can use your Liked Songs
-                and search the full Spotify catalog.
-              </p>
-
-              <a
-                href="/api/spotify/login"
-                className="mt-8 inline-flex min-h-16 items-center justify-center rounded-full bg-[#1DB954] px-10 text-lg font-bold text-black transition hover:scale-[1.02] hover:bg-[#22cf63]"
-              >
-                Connect Spotify
-              </a>
+                <button
+                  type="button"
+                  onClick={
+                    continueWithoutLoading
+                  }
+                  className="min-h-12 rounded-full bg-[#1DB954] px-6 font-bold text-black transition hover:bg-[#22cf63]"
+                >
+                  Continue without
+                  loading
+                </button>
+              </div>
             </section>
           )}
 
-        {(connected || librarySkipped) && (
+        {/* NO CACHE YET */}
+        {!loading &&
+          connected === null &&
+          tracks.length ===
+            0 &&
+          !librarySkipped && (
+            <section className="mb-20 rounded-[30px] border border-white/[0.07] bg-[#111111] p-8 md:p-12">
+              <h2 className="text-4xl font-bold tracking-tight">
+                Open up your
+                library.
+              </h2>
+
+              <p className="mt-4 max-w-xl text-lg text-zinc-400">
+                Echo will not
+                fetch your Liked
+                Songs
+                automatically.
+                Load them once,
+                then your cached
+                library stays on
+                this device until
+                you choose to
+                refresh it.
+              </p>
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void refreshLibrary();
+                  }}
+                  disabled={
+                    loading
+                  }
+                  className="inline-flex min-h-16 items-center justify-center rounded-full bg-[#1DB954] px-10 text-lg font-bold text-black transition hover:scale-[1.02] hover:bg-[#22cf63] disabled:opacity-40"
+                >
+                  {loading
+                    ? "Loading..."
+                    : "Load library"}
+                </button>
+
+                <a
+                  href="/api/spotify/login"
+                  className="inline-flex min-h-16 items-center justify-center rounded-full border border-white/[0.12] px-8 text-lg font-semibold text-white transition hover:bg-white/[0.06]"
+                >
+                  Connect Spotify
+                </a>
+
+                <button
+                  type="button"
+                  onClick={
+                    continueWithoutLoading
+                  }
+                  className="inline-flex min-h-16 items-center justify-center rounded-full border border-white/[0.08] px-8 text-lg font-semibold text-zinc-400 transition hover:bg-white/[0.05] hover:text-white"
+                >
+                  Continue without
+                  library
+                </button>
+              </div>
+            </section>
+          )}
+
+        {(connected ||
+          librarySkipped ||
+          tracks.length >
+            0) && (
           <>
             {/* SEARCH BAR */}
             <section className="sticky top-0 z-20 -mx-6 border-y border-white/[0.06] bg-[#070707]/90 px-6 py-5 backdrop-blur-xl md:-mx-10 md:px-10 lg:-mx-14 lg:px-14">
               <div className="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight">
-                    Choose your sound
+                    Choose your
+                    sound
                   </h2>
 
                   <p className="mt-1 text-sm text-zinc-500">
-                    {selected.length}/5 selected
+                    {
+                      selected.length
+                    }
+                    /5 selected
                   </p>
                 </div>
 
                 <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row md:max-w-[460px]">
                   <div className="w-full min-w-0 flex-1">
                     <input
-                      value={search}
-                      onChange={(event) =>
+                      value={
+                        search
+                      }
+                      onChange={(
+                        event
+                      ) =>
                         setSearch(
-                          event.target.value
+                          event
+                            .target
+                            .value
                         )
                       }
                       placeholder="Search any song on Spotify..."
@@ -1100,13 +1423,17 @@ export default function Home() {
                     />
                   </div>
 
-                  {selected.length > 0 && (
+                  {selected.length >
+                    0 && (
                     <button
                       type="button"
-                      onClick={findEcho}
+                      onClick={
+                        findEcho
+                      }
                       className="min-h-12 shrink-0 rounded-full bg-[#1DB954] px-6 font-bold text-black transition hover:bg-[#22cf63] sm:px-5"
                     >
-                      Continue to Echo →
+                      Continue to
+                      Echo →
                     </button>
                   )}
                 </div>
@@ -1123,7 +1450,8 @@ export default function Home() {
                       className="h-full bg-[#1DB954] transition-all duration-300"
                       style={{
                         width:
-                          totalCount > 0
+                          totalCount >
+                          0
                             ? `${
                                 (loadedCount /
                                   totalCount) *
@@ -1144,18 +1472,6 @@ export default function Home() {
                 </section>
               )}
 
-            {loading && !librarySkipped && (
-              <div className="-mt-5 flex justify-end pb-5">
-                <button
-                  type="button"
-                  onClick={continueWithoutLoading}
-                  className="rounded-full border border-white/[0.1] px-5 py-2.5 text-sm font-semibold text-zinc-400 transition hover:border-white/[0.2] hover:text-white"
-                >
-                  Continue without loading
-                </button>
-              </div>
-            )}
-
             {/* TRACK BROWSER */}
             <section className="py-14">
               <div className="mb-8">
@@ -1165,8 +1481,8 @@ export default function Home() {
                       {search
                         ? "Spotify"
                         : librarySkipped
-                        ? "Library skipped"
-                        : "Your library"}
+                          ? "Library skipped"
+                          : "Your library"}
                     </p>
 
                     <h2 className="mt-2 text-4xl font-bold tracking-tight">
@@ -1175,152 +1491,181 @@ export default function Home() {
                           ? "Searching Spotify..."
                           : "Spotify results"
                         : librarySkipped
-                        ? "Search for songs you love"
-                        : "Songs you love"}
+                          ? "Search for songs you love"
+                          : "Songs you love"}
                     </h2>
                   </div>
 
                   {search && (
                     <button
                       onClick={() =>
-                        setSearch("")
+                        setSearch(
+                          ""
+                        )
                       }
                       className="text-sm text-zinc-600 transition hover:text-white"
                     >
-                      Back to Liked Songs
+                      Back to Liked
+                      Songs
                     </button>
                   )}
                 </div>
 
                 {/* LIBRARY CONTROLS */}
-                {!search && !librarySkipped && (
-                  <div className="mt-7 space-y-5">
-                    {/* GENRE FILTERS */}
-                    <div className="flex flex-wrap gap-2">
-                      {GENRES.map(
-                        (genre) => (
-                          <button
-                            key={genre}
-                            onClick={() =>
-                              setGenreFilter(
+                {!search &&
+                  !librarySkipped &&
+                  tracks.length >
+                    0 && (
+                    <div className="mt-7 space-y-5">
+                      {/* GENRE FILTERS */}
+                      <div className="flex flex-wrap gap-2">
+                        {GENRES.map(
+                          (
+                            genre
+                          ) => (
+                            <button
+                              key={
                                 genre
-                              )
-                            }
-                            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                              genreFilter ===
-                              genre
-                                ? "bg-[#1DB954] text-black"
-                                : "border border-white/[0.08] bg-white/[0.03] text-zinc-500 hover:bg-white/[0.07] hover:text-white"
-                            }`}
-                          >
-                            {genre}
-                          </button>
-                        )
+                              }
+                              onClick={() =>
+                                setGenreFilter(
+                                  genre
+                                )
+                              }
+                              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                                genreFilter ===
+                                genre
+                                  ? "bg-[#1DB954] text-black"
+                                  : "border border-white/[0.08] bg-white/[0.03] text-zinc-500 hover:bg-white/[0.07] hover:text-white"
+                              }`}
+                            >
+                              {
+                                genre
+                              }
+                            </button>
+                          )
+                        )}
+                      </div>
+
+                      {/* SORT */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="mr-2 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-700">
+                          Sort
+                        </span>
+
+                        <button
+                          onClick={() =>
+                            setSortMode(
+                              "recent"
+                            )
+                          }
+                          className={`rounded-full px-4 py-2 text-sm transition ${
+                            sortMode ===
+                            "recent"
+                              ? "bg-white text-black"
+                              : "border border-white/[0.08] text-zinc-500 hover:bg-white/[0.05] hover:text-white"
+                          }`}
+                        >
+                          Recently
+                          liked
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            setSortMode(
+                              "title"
+                            )
+                          }
+                          className={`rounded-full px-4 py-2 text-sm transition ${
+                            sortMode ===
+                            "title"
+                              ? "bg-white text-black"
+                              : "border border-white/[0.08] text-zinc-500 hover:bg-white/[0.05] hover:text-white"
+                          }`}
+                        >
+                          Song A–Z
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            setSortMode(
+                              "artist"
+                            )
+                          }
+                          className={`rounded-full px-4 py-2 text-sm transition ${
+                            sortMode ===
+                            "artist"
+                              ? "bg-white text-black"
+                              : "border border-white/[0.08] text-zinc-500 hover:bg-white/[0.05] hover:text-white"
+                          }`}
+                        >
+                          Artist A–Z
+                        </button>
+
+                        <span className="ml-auto text-sm text-zinc-700">
+                          {
+                            libraryTracks.length
+                          }{" "}
+                          songs
+                        </span>
+                      </div>
+
+                      {/* GENRE PROGRESS */}
+                      {genresLoading && (
+                        <div>
+                          <div className="h-[2px] overflow-hidden rounded-full bg-white/[0.06]">
+                            <div
+                              className="h-full bg-[#1DB954]/60 transition-all duration-300"
+                              style={{
+                                width:
+                                  genresTotal >
+                                  0
+                                    ? `${
+                                        (genresProcessed /
+                                          genresTotal) *
+                                        100
+                                      }%`
+                                    : "0%",
+                              }}
+                            />
+                          </div>
+
+                          <p className="mt-2 text-xs text-zinc-700">
+                            Sorting
+                            genres{" "}
+                            {genresProcessed.toLocaleString()}
+                            {" / "}
+                            {genresTotal.toLocaleString()}{" "}
+                            artists
+                          </p>
+                        </div>
                       )}
                     </div>
+                  )}
 
-                    {/* SORT */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="mr-2 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-700">
-                        Sort
-                      </span>
-
-                      <button
-                        onClick={() =>
-                          setSortMode(
-                            "recent"
-                          )
-                        }
-                        className={`rounded-full px-4 py-2 text-sm transition ${
-                          sortMode ===
-                          "recent"
-                            ? "bg-white text-black"
-                            : "border border-white/[0.08] text-zinc-500 hover:bg-white/[0.05] hover:text-white"
-                        }`}
-                      >
-                        Recently liked
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          setSortMode(
-                            "title"
-                          )
-                        }
-                        className={`rounded-full px-4 py-2 text-sm transition ${
-                          sortMode ===
-                          "title"
-                            ? "bg-white text-black"
-                            : "border border-white/[0.08] text-zinc-500 hover:bg-white/[0.05] hover:text-white"
-                        }`}
-                      >
-                        Song A–Z
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          setSortMode(
-                            "artist"
-                          )
-                        }
-                        className={`rounded-full px-4 py-2 text-sm transition ${
-                          sortMode ===
-                          "artist"
-                            ? "bg-white text-black"
-                            : "border border-white/[0.08] text-zinc-500 hover:bg-white/[0.05] hover:text-white"
-                        }`}
-                      >
-                        Artist A–Z
-                      </button>
-
-                      <span className="ml-auto text-sm text-zinc-700">
-                        {libraryTracks.length} songs
-                      </span>
-                    </div>
-
-                    {/* GENRE PROGRESS */}
-                    {genresLoading && (
-                      <div>
-                        <div className="h-[2px] overflow-hidden rounded-full bg-white/[0.06]">
-                          <div
-                            className="h-full bg-[#1DB954]/60 transition-all duration-300"
-                            style={{
-                              width:
-                                genresTotal >
-                                0
-                                  ? `${
-                                      (genresProcessed /
-                                        genresTotal) *
-                                      100
-                                    }%`
-                                  : "0%",
-                            }}
-                          />
-                        </div>
-
-                        <p className="mt-2 text-xs text-zinc-700">
-                          Sorting genres{" "}
-                          {genresProcessed.toLocaleString()}
-                          {" / "}
-                          {genresTotal.toLocaleString()}{" "}
-                          artists
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {!search && librarySkipped && (
-                  <p className="mt-4 max-w-xl text-sm leading-6 text-zinc-500">
-                    Search Spotify to choose up to five songs, then build a blend around them.
-                  </p>
-                )}
+                {!search &&
+                  librarySkipped && (
+                    <p className="mt-4 max-w-xl text-sm leading-6 text-zinc-500">
+                      Search Spotify
+                      to choose up
+                      to five songs,
+                      then build a
+                      blend around
+                      them.
+                    </p>
+                  )}
               </div>
 
               {spotifySearchError && (
                 <div className="mb-6 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-sm text-zinc-300">
-                  <p>{spotifySearchError}</p>
-                  {(!connected || spotifySearchNeedsConnection) && (
+                  <p>
+                    {
+                      spotifySearchError
+                    }
+                  </p>
+
+                  {(!connected ||
+                    spotifySearchNeedsConnection) && (
                     <a
                       href="/api/spotify/login"
                       className="mt-3 inline-flex font-semibold text-[#1DB954] transition hover:text-[#22cf63]"
@@ -1339,7 +1684,8 @@ export default function Home() {
                       <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-zinc-800 border-t-[#1DB954]" />
 
                       <p className="mt-4 text-sm text-zinc-600">
-                        Searching Spotify...
+                        Searching
+                        Spotify...
                       </p>
                     </div>
                   </div>
@@ -1349,10 +1695,14 @@ export default function Home() {
               {!searchingSpotify && (
                 <div className="grid grid-cols-2 gap-x-4 gap-y-9 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                   {visibleTracks.map(
-                    (track) => {
+                    (
+                      track
+                    ) => {
                       const isSelected =
                         selected.some(
-                          (item) =>
+                          (
+                            item
+                          ) =>
                             item.id ===
                             track.id
                         );
@@ -1376,7 +1726,9 @@ export default function Home() {
 
                       return (
                         <button
-                          key={track.id}
+                          key={
+                            track.id
+                          }
                           onClick={() =>
                             toggleTrack(
                               track
@@ -1434,11 +1786,15 @@ export default function Home() {
                                 : "text-white"
                             }`}
                           >
-                            {track.name}
+                            {
+                              track.name
+                            }
                           </p>
 
                           <p className="mt-1 truncate text-sm text-zinc-500">
-                            {track.artist}
+                            {
+                              track.artist
+                            }
                           </p>
 
                           {!search &&
@@ -1446,7 +1802,9 @@ export default function Home() {
                             genre !==
                               "All" && (
                               <p className="mt-1 truncate text-xs text-zinc-700">
-                                {genre}
+                                {
+                                  genre
+                                }
                               </p>
                             )}
                         </button>
@@ -1465,17 +1823,16 @@ export default function Home() {
                       {search
                         ? "No Spotify results found."
                         : librarySkipped
-                        ? "Search Spotify above to choose your first song."
-                        : genresLoading
-                        ? "Echo is still sorting this category."
-                        : "No songs found in this category."}
+                          ? "Search Spotify above to choose your first song."
+                          : genresLoading
+                            ? "Echo is still sorting this category."
+                            : "No songs found in this category."}
                     </p>
                   </div>
                 )}
             </section>
           </>
         )}
-
       </div>
 
       {/* SEED TRAY */}
@@ -1485,9 +1842,13 @@ export default function Home() {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex min-w-0 items-center gap-3 overflow-x-auto">
                 {selected.map(
-                  (track) => (
+                  (
+                    track
+                  ) => (
                     <div
-                      key={track.id}
+                      key={
+                        track.id
+                      }
                       className="flex min-w-[190px] max-w-[220px] shrink-0 items-center gap-3 rounded-[16px] bg-white/[0.05] p-2 pr-3"
                     >
                       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-zinc-800">
@@ -1504,11 +1865,15 @@ export default function Home() {
 
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold">
-                          {track.name}
+                          {
+                            track.name
+                          }
                         </p>
 
                         <p className="truncate text-xs text-zinc-500">
-                          {track.artist}
+                          {
+                            track.artist
+                          }
                         </p>
                       </div>
 
@@ -1530,7 +1895,9 @@ export default function Home() {
 
               <button
                 type="button"
-                onClick={findEcho}
+                onClick={
+                  findEcho
+                }
                 className="min-h-14 shrink-0 rounded-full bg-[#1DB954] px-8 font-bold text-black transition hover:scale-[1.02] hover:bg-[#22cf63] active:scale-[0.98]"
               >
                 Continue to Echo →
