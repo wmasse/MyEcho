@@ -2,30 +2,11 @@
 
 import { useState } from "react";
 
-type ShareTrack = {
-  id: string;
-  name: string;
-  artist: string;
-
-  source?:
-    | "seed"
-    | "library"
-    | "discovery";
-};
-
 type Props = {
-  name: string;
-  tracks: ShareTrack[];
-  seeds?: ShareTrack[];
-  disabled?: boolean;
   className?: string;
 };
 
 export default function ShareEchoButton({
-  name,
-  tracks,
-  seeds = [],
-  disabled = false,
   className = "",
 }: Props) {
   const [status, setStatus] =
@@ -34,46 +15,6 @@ export default function ShareEchoButton({
       "sharing" |
       "copied"
     >("idle");
-
-  function buildShareText() {
-    const seedText =
-      seeds.length > 0
-        ? [
-            "Built from:",
-            ...seeds.map(
-              (track) =>
-                `• ${track.name} — ${track.artist}`
-            ),
-            "",
-          ]
-        : [];
-
-    const trackText =
-      tracks.map(
-        (track, index) => {
-          const label =
-            track.source ===
-            "seed"
-              ? " [seed]"
-              : track.source ===
-                "discovery"
-              ? " [new]"
-              : "";
-
-          return `${index + 1}. ${track.name} — ${track.artist}${label}`;
-        }
-      );
-
-    return [
-      `🎧 ${name}`,
-      "Made with Echo",
-      "",
-      ...seedText,
-      `${tracks.length} songs`,
-      "",
-      ...trackText,
-    ].join("\n");
-  }
 
   async function copyFallback(
     text: string
@@ -102,7 +43,7 @@ export default function ShareEchoButton({
     }
 
     window.prompt(
-      "Copy your Echo:",
+      "Copy the Echo website link:",
       text
     );
 
@@ -110,15 +51,8 @@ export default function ShareEchoButton({
   }
 
   async function shareEcho() {
-    if (
-      disabled ||
-      tracks.length === 0
-    ) {
-      return;
-    }
-
-    const text =
-      buildShareText();
+    const url = new URL("/", window.location.origin).toString();
+    const text = "Make your own Echo playlist with Echo.";
 
     setStatus("sharing");
 
@@ -134,8 +68,9 @@ export default function ShareEchoButton({
     ) {
       try {
         await navigator.share({
-          title: name,
+          title: "Echo",
           text,
+          url,
         });
 
         setStatus("idle");
@@ -162,17 +97,14 @@ export default function ShareEchoButton({
       }
     }
 
-    await copyFallback(text);
+    await copyFallback(`${text} ${url}`);
   }
 
   return (
     <button
       type="button"
       onClick={shareEcho}
-      disabled={
-        disabled ||
-        status === "sharing"
-      }
+      disabled={status === "sharing"}
       className={className}
     >
       {status === "sharing"

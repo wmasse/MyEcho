@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 type Track = {
@@ -40,6 +41,79 @@ const GENRES = [
   "Other",
 ] as const;
 
+type PopularAlbum = {
+  id: string;
+  name: string;
+  artist: string;
+  image: string;
+};
+
+const POPULAR_ALBUMS: PopularAlbum[] = [
+  {
+    id: "midnights",
+    name: "Midnights",
+    artist: "Taylor Swift",
+    image:
+      "https://image-cdn-fa.spotifycdn.com/image/ab67616d00001e02fa747621a53c8e2cc436dee0",
+  },
+  {
+    id: "after-hours",
+    name: "After Hours",
+    artist: "The Weeknd",
+    image:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e028863bc11d2aa12b54f5aeb36",
+  },
+  {
+    id: "sour",
+    name: "SOUR",
+    artist: "Olivia Rodrigo",
+    image:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e02a91c10fe9472d9bd89802e5a",
+  },
+  {
+    id: "un-verano-sin-ti",
+    name: "Un Verano Sin Ti",
+    artist: "Bad Bunny",
+    image:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e0249d694203245f241a1bcaa72",
+  },
+  {
+    id: "starboy",
+    name: "Starboy",
+    artist: "The Weeknd",
+    image:
+      "https://image-cdn-fa.spotifycdn.com/image/ab67616d00001e024718e2b124f79258be7bc452",
+  },
+  {
+    id: "damn",
+    name: "DAMN.",
+    artist: "Kendrick Lamar",
+    image:
+      "https://image-cdn-fa.spotifycdn.com/image/ab67616d00001e028b52c6b9bc4e43d873869699",
+  },
+  {
+    id: "happier-than-ever",
+    name: "Happier Than Ever",
+    artist: "Billie Eilish",
+    image:
+      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e022a038d3bf875d23e4aeaa84e",
+  },
+];
+
+function randomPopularAlbums() {
+  const albums = [...POPULAR_ALBUMS];
+
+  for (let index = albums.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [albums[index], albums[randomIndex]] = [
+      albums[randomIndex],
+      albums[index],
+    ];
+  }
+
+  return albums.slice(0, 4);
+}
+
 type Genre = (typeof GENRES)[number];
 
 type SortMode =
@@ -62,6 +136,9 @@ function artistKey(artist: string) {
 
 export default function Home() {
   const router = useRouter();
+
+  const [heroAlbums, setHeroAlbums] =
+    useState<PopularAlbum[]>(POPULAR_ALBUMS.slice(0, 4));
 
   /*
    * SPOTIFY LIBRARY
@@ -175,6 +252,10 @@ export default function Home() {
     libraryStarted.current = true;
 
     loadLibrary();
+  }, []);
+
+  useEffect(() => {
+    setHeroAlbums(randomPopularAlbums());
   }, []);
 
   /*
@@ -876,19 +957,42 @@ export default function Home() {
         </nav>
 
         {/* HERO */}
-        <section className="pb-16 pt-16 md:pb-20 md:pt-24">
+        <section className="pb-16 pt-14 md:pb-20 md:pt-16">
           <p className="mb-6 text-sm font-semibold uppercase tracking-[0.2em] text-[#1DB954]">
             Your music, reorganized
           </p>
 
-          <h1 className="max-w-5xl text-6xl font-black leading-[0.92] tracking-[-0.06em] sm:text-7xl md:text-8xl lg:text-[96px]">
-            Find the songs
-            <br />
-            that{" "}
-            <span className="text-[#1DB954]">
-              feel the same.
-            </span>
-          </h1>
+          <h1 className="sr-only">Popular albums to inspire your next blend</h1>
+          <div
+            aria-label="A random selection of popular album covers"
+            role="list"
+            className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-4 sm:gap-x-5 md:gap-x-7"
+          >
+            {heroAlbums.map((album, index) => (
+              <article
+                key={album.id}
+                role="listitem"
+                className={`group min-w-0 ${index % 2 === 1 ? "sm:translate-y-5" : ""}`}
+              >
+                <div className="relative aspect-square overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#111111] shadow-[0_24px_80px_rgba(0,0,0,0.35)] transition duration-500 group-hover:-translate-y-1">
+                  <Image
+                    src={album.image}
+                    alt={`${album.name} by ${album.artist} album cover`}
+                    fill
+                    sizes="(max-width: 639px) 42vw, (max-width: 1279px) 22vw, 270px"
+                    className="object-cover"
+                  />
+                </div>
+
+                <p className="mt-3 truncate text-sm font-semibold text-white">
+                  {album.name}
+                </p>
+                <p className="mt-1 truncate text-sm text-zinc-500">
+                  {album.artist}
+                </p>
+              </article>
+            ))}
+          </div>
 
           <p className="mt-8 max-w-2xl text-lg leading-8 text-zinc-400 md:text-xl">
             Pick up to five songs from anywhere on Spotify.
@@ -982,17 +1086,29 @@ export default function Home() {
                   </p>
                 </div>
 
-                <div className="w-full md:max-w-md">
-                  <input
-                    value={search}
-                    onChange={(event) =>
-                      setSearch(
-                        event.target.value
-                      )
-                    }
-                    placeholder="Search any song on Spotify..."
-                    className="h-12 w-full rounded-full border border-white/[0.08] bg-white/[0.05] px-5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[#1DB954]/50 focus:bg-white/[0.07]"
-                  />
+                <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row md:max-w-[460px]">
+                  <div className="w-full min-w-0 flex-1">
+                    <input
+                      value={search}
+                      onChange={(event) =>
+                        setSearch(
+                          event.target.value
+                        )
+                      }
+                      placeholder="Search any song on Spotify..."
+                      className="h-12 w-full rounded-full border border-white/[0.08] bg-white/[0.05] px-5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[#1DB954]/50 focus:bg-white/[0.07]"
+                    />
+                  </div>
+
+                  {selected.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={findEcho}
+                      className="min-h-12 shrink-0 rounded-full bg-[#1DB954] px-6 font-bold text-black transition hover:bg-[#22cf63] sm:px-5"
+                    >
+                      Continue to Echo →
+                    </button>
+                  )}
                 </div>
               </div>
             </section>
@@ -1413,10 +1529,11 @@ export default function Home() {
               </div>
 
               <button
+                type="button"
                 onClick={findEcho}
                 className="min-h-14 shrink-0 rounded-full bg-[#1DB954] px-8 font-bold text-black transition hover:scale-[1.02] hover:bg-[#22cf63] active:scale-[0.98]"
               >
-                Find the Echo
+                Continue to Echo →
               </button>
             </div>
           </div>

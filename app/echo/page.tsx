@@ -47,6 +47,7 @@ export default function EchoPage() {
   const [removedTrackIds, setRemovedTrackIds] = useState<Set<string>>(
     () => new Set()
   );
+  const [removedTracks, setRemovedTracks] = useState<EchoResult[]>([]);
   const [mix, setMix] = useState<Mix | null>(null);
 
   const [playlistSize, setPlaylistSize] = useState(25);
@@ -202,6 +203,7 @@ export default function EchoPage() {
 
       setRecommendations(recommendationResults);
       setRemovedTrackIds(new Set());
+      setRemovedTracks([]);
       setMix(data.mix ?? null);
     } catch (err) {
       console.error(err);
@@ -216,8 +218,21 @@ export default function EchoPage() {
     }
   }
 
-  function removeResult(id: string) {
-    setRemovedTrackIds((current) => new Set(current).add(id));
+  function removeResult(track: EchoResult) {
+    setRemovedTrackIds((current) => new Set(current).add(track.id));
+    setRemovedTracks((current) => [...current, track]);
+  }
+
+  function undoLastRemoval() {
+    const track = removedTracks[removedTracks.length - 1];
+    if (!track) return;
+
+    setRemovedTrackIds((current) => {
+      const next = new Set(current);
+      next.delete(track.id);
+      return next;
+    });
+    setRemovedTracks((current) => current.slice(0, -1));
   }
 
   function saveToEcho() {
@@ -497,6 +512,27 @@ export default function EchoPage() {
                   </p>
                 </div>
 
+                {removedTracks.length > 0 && (
+                  <div
+                    className="mb-4 flex items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 py-3"
+                    aria-live="polite"
+                  >
+                    <p className="min-w-0 truncate text-sm text-zinc-400">
+                      Removed{" "}
+                      <span className="font-semibold text-white">
+                        {removedTracks[removedTracks.length - 1].name}
+                      </span>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={undoLastRemoval}
+                      className="shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold text-[#1DB954] transition hover:bg-[#1DB954]/10"
+                    >
+                      Undo
+                    </button>
+                  </div>
+                )}
+
                 {/* TRACK LIST */}
                 <div className="space-y-1">
                   {results.map(
@@ -571,7 +607,7 @@ export default function EchoPage() {
                         <button
                           onClick={() =>
                             removeResult(
-                              track.id
+                              track
                             )
                           }
                           className="flex h-8 w-8 items-center justify-center rounded-full text-lg text-zinc-700 transition hover:bg-white/[0.08] hover:text-white"
@@ -755,6 +791,12 @@ export default function EchoPage() {
                         seeds.forEach((track) => next.delete(track.id));
                         return next;
                       });
+                      setRemovedTracks((current) =>
+                        current.filter(
+                          (track) =>
+                            !seeds.some((seed) => seed.id === track.id)
+                        )
+                      );
                     }
                     void generateEcho(
                       seeds,
@@ -825,16 +867,6 @@ export default function EchoPage() {
 
               {/* SHARE */}
               <ShareEchoButton
-                name={
-                  playlistName.trim() ||
-                  "My Echo"
-                }
-                tracks={results}
-                seeds={seeds}
-                disabled={
-                  finding ||
-                  results.length === 0
-                }
                 className="mt-3 min-h-14 w-full rounded-full border border-white/[0.1] font-bold transition hover:bg-white/[0.06] disabled:opacity-40"
               />
 
