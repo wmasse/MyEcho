@@ -105,7 +105,7 @@ const POPULAR_ALBUMS: PopularAlbum[] = [
   },
 ];
 
-function randomPopularAlbums() {
+function shuffledPopularAlbums() {
   const albums = [...POPULAR_ALBUMS];
 
   for (
@@ -127,7 +127,7 @@ function randomPopularAlbums() {
     ];
   }
 
-  return albums.slice(0, 4);
+  return albums;
 }
 
 function primaryArtist(
@@ -163,8 +163,10 @@ export default function Home() {
     heroAlbums,
     setHeroAlbums,
   ] = useState<PopularAlbum[]>(
-    POPULAR_ALBUMS.slice(0, 4)
+    POPULAR_ALBUMS
   );
+
+  const [heroPaused, setHeroPaused] = useState(false);
 
   /*
    * SPOTIFY LIBRARY
@@ -314,6 +316,7 @@ export default function Home() {
       null
     );
 
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const tracksRef = useRef(tracks);
 
   function handleSearchChange(value: string) {
@@ -325,6 +328,18 @@ export default function Home() {
     setSpotifySearchNeedsConnection(false);
     setSearchingApple(false);
     setSearchingSpotify(Boolean(value.trim()));
+  }
+
+  function searchPopularAlbum(album: PopularAlbum) {
+    if (search !== album.name) {
+      handleSearchChange(album.name);
+    }
+
+    const searchInput = searchInputRef.current;
+    if (searchInput) {
+      searchInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      searchInput.focus({ preventScroll: true });
+    }
   }
 
   useEffect(() => {
@@ -354,9 +369,27 @@ export default function Home() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Keep server and first client render deterministic, then randomize after hydration.
     setHeroAlbums(
-      randomPopularAlbums()
+      shuffledPopularAlbums()
     );
   }, []);
+
+  useEffect(() => {
+    if (
+      heroPaused ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setHeroAlbums((albums) => [
+        ...albums.slice(1),
+        albums[0],
+      ]);
+    }, 5200);
+
+    return () => window.clearInterval(interval);
+  }, [heroPaused]);
 
   /*
    * LOAD / BUILD GENRE CACHE
@@ -1328,11 +1361,23 @@ export default function Home() {
           </h1>
 
           <div
-            aria-label="A random selection of popular album covers"
+            aria-label="Rotating selection of popular album covers"
             role="list"
             className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-4 sm:gap-x-5 md:gap-x-7"
+            onMouseEnter={() => setHeroPaused(true)}
+            onMouseLeave={() => setHeroPaused(false)}
+            onFocusCapture={() => setHeroPaused(true)}
+            onBlurCapture={(event) => {
+              if (
+                !event.currentTarget.contains(
+                  event.relatedTarget as Node | null
+                )
+              ) {
+                setHeroPaused(false);
+              }
+            }}
           >
-            {heroAlbums.map(
+            {heroAlbums.slice(0, 4).map(
               (
                 album,
                 index
@@ -1350,29 +1395,36 @@ export default function Home() {
                       : ""
                   }`}
                 >
-                  <div className="relative aspect-square overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#111111] shadow-[0_24px_80px_rgba(0,0,0,0.35)] transition duration-500 group-hover:-translate-y-1">
-                    <Image
-                      src={
-                        album.image
+                  <button
+                    type="button"
+                    onClick={() => searchPopularAlbum(album)}
+                    aria-label={`Search songs from ${album.name} by ${album.artist}`}
+                    className="group block w-full min-w-0 cursor-pointer rounded-[22px] text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1DB954]"
+                  >
+                    <div className="album-card-turn relative aspect-square overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#111111] shadow-[0_24px_80px_rgba(0,0,0,0.35)] transition duration-500 group-hover:-translate-y-1">
+                      <Image
+                        src={
+                          album.image
+                        }
+                        alt=""
+                        fill
+                        sizes="(max-width: 639px) 42vw, (max-width: 1279px) 22vw, 270px"
+                        className="object-cover"
+                      />
+                    </div>
+
+                    <p className="mt-3 truncate text-sm font-semibold text-white">
+                      {
+                        album.name
                       }
-                      alt={`${album.name} by ${album.artist} album cover`}
-                      fill
-                      sizes="(max-width: 639px) 42vw, (max-width: 1279px) 22vw, 270px"
-                      className="object-cover"
-                    />
-                  </div>
+                    </p>
 
-                  <p className="mt-3 truncate text-sm font-semibold text-white">
-                    {
-                      album.name
-                    }
-                  </p>
-
-                  <p className="mt-1 truncate text-sm text-zinc-500">
-                    {
-                      album.artist
-                    }
-                  </p>
+                    <p className="mt-1 truncate text-sm text-zinc-500">
+                      {
+                        album.artist
+                      }
+                    </p>
+                  </button>
                 </article>
               )
             )}
@@ -1528,6 +1580,8 @@ export default function Home() {
                 <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row md:max-w-[460px]">
                   <div className="w-full min-w-0 flex-1">
                     <input
+                      id="song-search"
+                      ref={searchInputRef}
                       value={
                         search
                       }
