@@ -5,7 +5,7 @@ export default function EchoLogo() {
     <Link
       href="/"
       aria-label="Echo home"
-      className="inline-flex shrink-0 rounded-sm text-stone-100 transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-stone-300"
+      className="inline-flex shrink-0 rounded-sm text-[#1DB954] transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1DB954]"
     >
       <svg
         aria-hidden="true"
@@ -16,19 +16,19 @@ export default function EchoLogo() {
       >
         <defs>
           <radialGradient id="echo-orb-front" cx="30%" cy="24%" r="78%">
-            <stop offset="0" stopColor="#E4ECE8" stopOpacity="0.68" />
-            <stop offset="0.42" stopColor="#A9BDC0" stopOpacity="0.4" />
-            <stop offset="1" stopColor="#657A82" stopOpacity="0.22" />
+            <stop offset="0" stopColor="#A7FFC3" stopOpacity="0.9" />
+            <stop offset="0.42" stopColor="#29D566" stopOpacity="0.72" />
+            <stop offset="1" stopColor="#0E8D43" stopOpacity="0.55" />
           </radialGradient>
           <radialGradient id="echo-orb-middle" cx="30%" cy="24%" r="78%">
-            <stop offset="0" stopColor="#E8EAE4" stopOpacity="0.52" />
-            <stop offset="0.48" stopColor="#B9BFBB" stopOpacity="0.3" />
-            <stop offset="1" stopColor="#7E8888" stopOpacity="0.16" />
+            <stop offset="0" stopColor="#81EFA4" stopOpacity="0.7" />
+            <stop offset="0.48" stopColor="#1DB954" stopOpacity="0.56" />
+            <stop offset="1" stopColor="#0B7138" stopOpacity="0.4" />
           </radialGradient>
           <radialGradient id="echo-orb-back" cx="30%" cy="24%" r="78%">
-            <stop offset="0" stopColor="#ECEAE2" stopOpacity="0.38" />
-            <stop offset="0.5" stopColor="#C5C2B9" stopOpacity="0.2" />
-            <stop offset="1" stopColor="#85847F" stopOpacity="0.1" />
+            <stop offset="0" stopColor="#64D98C" stopOpacity="0.55" />
+            <stop offset="0.5" stopColor="#159A49" stopOpacity="0.42" />
+            <stop offset="1" stopColor="#075A2D" stopOpacity="0.3" />
           </radialGradient>
         </defs>
 
