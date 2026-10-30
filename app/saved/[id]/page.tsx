@@ -2,6 +2,10 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import {
+  SPOTIFY_PLAYLISTS_ENABLED,
+  SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
+} from "@/lib/spotify-playlists";
 
 type Track = {
   id: string;
@@ -138,7 +142,13 @@ function SavedEchoContent() {
   }
 
   async function saveToSpotify() {
-    if (!playlist || playlist.tracks.length === 0) return;
+    if (
+      !SPOTIFY_PLAYLISTS_ENABLED ||
+      !playlist ||
+      playlist.tracks.length === 0
+    ) {
+      return;
+    }
 
     setSavingSpotify(true);
     setError("");
@@ -146,20 +156,13 @@ function SavedEchoContent() {
     try {
       const response = await fetch("/api/spotify/playlist", {
         method: "POST",
-
         headers: {
           "Content-Type": "application/json",
         },
-
         body: JSON.stringify({
           name: playlist.name,
-
-          description:
-            "Created with Echo.",
-
-          uris: playlist.tracks.map(
-            (track) => track.uri
-          ),
+          description: "Created with Echo.",
+          uris: playlist.tracks.map((track) => track.uri),
         }),
       });
 
@@ -167,7 +170,8 @@ function SavedEchoContent() {
 
       if (!response.ok) {
         throw new Error(
-          data.error ||
+          data.message ||
+            data.error ||
             "Could not save playlist to Spotify."
         );
       }
@@ -179,7 +183,6 @@ function SavedEchoContent() {
       );
     } catch (err) {
       console.error(err);
-
       setError(
         err instanceof Error
           ? err.message
@@ -313,16 +316,22 @@ function SavedEchoContent() {
 
           <button
             onClick={saveToSpotify}
-            disabled={
-              savingSpotify ||
-              playlist.tracks.length === 0
-            }
-            className="mt-8 rounded-full bg-[#1DB954] px-8 py-4 font-bold text-black transition hover:scale-[1.02] hover:bg-[#22cf63] disabled:opacity-40"
+            disabled={!SPOTIFY_PLAYLISTS_ENABLED}
+            title={SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE}
+            className="mt-8 rounded-full bg-[#1DB954] px-8 py-4 font-bold text-black transition hover:scale-[1.02] hover:bg-[#22cf63] disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {savingSpotify
-              ? "Saving..."
-              : "Save to Spotify"}
+            {SPOTIFY_PLAYLISTS_ENABLED
+              ? savingSpotify
+                ? "Saving..."
+                : "Save to Spotify"
+              : "Spotify playlists paused"}
           </button>
+
+          {!SPOTIFY_PLAYLISTS_ENABLED && (
+            <p className="mt-3 text-sm leading-6 text-zinc-500">
+              {SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE}
+            </p>
+          )}
 
           {error && (
             <p className="mt-4 text-sm text-red-400">

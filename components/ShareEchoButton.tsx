@@ -11,9 +11,11 @@ type Props = {
     uri: string;
     name: string;
     artist: string;
+    album: string;
     image: string | null;
     source: "seed" | "library" | "discovery";
     echoScore: number;
+    matchedSeeds: number;
   }[];
   disabled?: boolean;
 };

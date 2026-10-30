@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { SPOTIFY_PLAYLISTS_ENABLED } from "@/lib/spotify-playlists";
 
 export async function GET() {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
@@ -15,7 +16,9 @@ export async function GET() {
 
   const scopes = [
     "user-library-read",
-    "playlist-modify-private",
+    ...(SPOTIFY_PLAYLISTS_ENABLED
+      ? ["playlist-modify-private"]
+      : []),
   ].join(" ");
 
   const params = new URLSearchParams({

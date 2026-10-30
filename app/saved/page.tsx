@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  SPOTIFY_PLAYLISTS_ENABLED,
+  SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
+} from "@/lib/spotify-playlists";
 
 type Track = {
   id: string;
@@ -31,10 +35,8 @@ export default function SavedPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
-
-  const [savingSpotifyId, setSavingSpotifyId] = useState<string | null>(
-    null
-  );
+  const [savingSpotifyId, setSavingSpotifyId] =
+    useState<string | null>(null);
 
   useEffect(() => {
     loadPlaylists();
@@ -107,23 +109,20 @@ export default function SavedPage() {
   }
 
   async function sendToSpotify(playlist: SavedEcho) {
+    if (!SPOTIFY_PLAYLISTS_ENABLED) return;
+
     setSavingSpotifyId(playlist.id);
 
     try {
       const response = await fetch("/api/spotify/playlist", {
         method: "POST",
-
         headers: {
           "Content-Type": "application/json",
         },
-
         body: JSON.stringify({
           name: playlist.name,
           description: "Created with Echo.",
-
-          uris: playlist.tracks.map(
-            (track) => track.uri
-          ),
+          uris: playlist.tracks.map((track) => track.uri),
         }),
       });
 
@@ -131,7 +130,7 @@ export default function SavedPage() {
 
       if (!response.ok) {
         throw new Error(
-          data.error || "Could not save to Spotify."
+          data.message || data.error || "Could not save to Spotify."
         );
       }
 
@@ -142,7 +141,6 @@ export default function SavedPage() {
       );
     } catch (error) {
       console.error(error);
-
       alert(
         error instanceof Error
           ? error.message
@@ -195,8 +193,8 @@ export default function SavedPage() {
           </h1>
 
           <p className="mt-6 max-w-xl text-lg leading-8 text-zinc-500">
-            Revisit the playlists that worked, rename them, edit them,
-            or send them to Spotify whenever you want.
+            Revisit the Echoes that worked, rename them, edit them, or share
+            them as links.
           </p>
         </section>
 
@@ -339,17 +337,16 @@ export default function SavedPage() {
                       </button>
 
                       <button
-                        onClick={() =>
-                          sendToSpotify(playlist)
-                        }
-                        disabled={
-                          savingSpotifyId === playlist.id
-                        }
-                        className="rounded-full bg-[#1DB954] px-4 py-3 text-sm font-bold text-black transition hover:bg-[#22cf63] disabled:opacity-50"
+                        onClick={() => sendToSpotify(playlist)}
+                        disabled={!SPOTIFY_PLAYLISTS_ENABLED}
+                        title={SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE}
+                        className="rounded-full bg-[#1DB954] px-4 py-3 text-sm font-bold text-black transition hover:bg-[#22cf63] disabled:cursor-not-allowed disabled:opacity-40"
                       >
-                        {savingSpotifyId === playlist.id
-                          ? "Saving..."
-                          : "Spotify"}
+                        {SPOTIFY_PLAYLISTS_ENABLED
+                          ? savingSpotifyId === playlist.id
+                            ? "Saving..."
+                            : "Spotify"
+                          : "Spotify paused"}
                       </button>
                     </div>
 

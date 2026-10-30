@@ -3,6 +3,10 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ShareEchoButton from "@/components/ShareEchoButton";
+import {
+  SPOTIFY_PLAYLISTS_ENABLED,
+  SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
+} from "@/lib/spotify-playlists";
 
 type Track = {
   id: string;
@@ -77,9 +81,8 @@ function EchoContent() {
 
   const [error, setError] = useState("");
 
-  const [savedSpotifyUrl, setSavedSpotifyUrl] = useState<string | null>(
-    null
-  );
+  const [savedSpotifyUrl, setSavedSpotifyUrl] =
+    useState<string | null>(null);
 
   const results = useMemo(() => {
     const seedIds = new Set(seeds.map((track) => track.id));
@@ -422,7 +425,12 @@ function EchoContent() {
   }
 
   async function saveToSpotify() {
-    if (results.length === 0) return;
+    if (
+      !SPOTIFY_PLAYLISTS_ENABLED ||
+      results.length === 0
+    ) {
+      return;
+    }
 
     setSavingSpotify(true);
     setError("");
@@ -433,22 +441,13 @@ function EchoContent() {
         "/api/spotify/playlist",
         {
           method: "POST",
-
           headers: {
             "Content-Type": "application/json",
           },
-
           body: JSON.stringify({
-            name:
-              playlistName.trim() ||
-              "My Echo",
-
-            description:
-              "Created with Echo.",
-
-            uris: results.map(
-              (track) => track.uri
-            ),
+            name: playlistName.trim() || "My Echo",
+            description: "Created with Echo.",
+            uris: results.map((track) => track.uri),
           }),
         }
       );
@@ -457,17 +456,15 @@ function EchoContent() {
 
       if (!response.ok) {
         throw new Error(
-          data.error ||
+          data.message ||
+            data.error ||
             "Could not save playlist to Spotify."
         );
       }
 
-      setSavedSpotifyUrl(
-        data.playlist.url
-      );
+      setSavedSpotifyUrl(data.playlist.url);
     } catch (err) {
       console.error(err);
-
       setError(
         err instanceof Error
           ? err.message
@@ -1053,15 +1050,25 @@ function EchoContent() {
                 onClick={saveToSpotify}
                 disabled={
                   savingSpotify ||
+                  !SPOTIFY_PLAYLISTS_ENABLED ||
                   finding ||
                   results.length === 0
                 }
-                className="mt-3 min-h-14 w-full rounded-full bg-[#1DB954] font-bold text-black transition hover:scale-[1.01] hover:bg-[#22cf63] disabled:opacity-40"
+                title={SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE}
+                className="mt-3 min-h-14 w-full rounded-full bg-[#1DB954] font-bold text-black transition hover:scale-[1.01] hover:bg-[#22cf63] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {savingSpotify
-                  ? "Saving..."
-                  : "Save to Spotify"}
+                {SPOTIFY_PLAYLISTS_ENABLED
+                  ? savingSpotify
+                    ? "Saving..."
+                    : "Save to Spotify"
+                  : "Spotify playlists paused"}
               </button>
+
+              {!SPOTIFY_PLAYLISTS_ENABLED && (
+                <p className="mt-2 text-center text-xs leading-5 text-zinc-500">
+                  {SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE}
+                </p>
+              )}
 
               {savedSpotifyUrl && (
                 <a

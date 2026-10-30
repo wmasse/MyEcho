@@ -1,7 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSpotifyAccessToken } from "@/lib/spotify";
+import {
+  SPOTIFY_PLAYLISTS_ENABLED,
+  SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
+} from "@/lib/spotify-playlists";
 
 export async function POST(request: NextRequest) {
+  if (!SPOTIFY_PLAYLISTS_ENABLED) {
+    return NextResponse.json(
+      {
+        error: "spotify_playlist_creation_unavailable",
+        message:
+          SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
+      },
+      { status: 503 }
+    );
+  }
+
   const token = await getSpotifyAccessToken();
 
   if (!token) {
