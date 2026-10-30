@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import ShareEchoButton from "@/components/ShareEchoButton";
 
@@ -43,7 +43,10 @@ export default function EchoPage() {
   const [seeds, setSeeds] = useState<Track[]>([]);
   const [library, setLibrary] = useState<Track[]>([]);
 
-  const [results, setResults] = useState<EchoResult[]>([]);
+  const [recommendations, setRecommendations] = useState<EchoResult[]>([]);
+  const [removedTrackIds, setRemovedTrackIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const [mix, setMix] = useState<Mix | null>(null);
 
   const [playlistSize, setPlaylistSize] = useState(25);
@@ -63,6 +66,39 @@ export default function EchoPage() {
   const [savedSpotifyUrl, setSavedSpotifyUrl] = useState<string | null>(
     null
   );
+
+  const results = useMemo(() => {
+    const seedIds = new Set(seeds.map((track) => track.id));
+    const includedSeeds: EchoResult[] = includeSeeds
+      ? seeds
+          .filter((track) => !removedTrackIds.has(track.id))
+          .map((track) => ({
+            ...track,
+            source: "seed",
+            echoScore: 100,
+            matchedSeeds: 1,
+          }))
+      : [];
+    const recommendationSlots = Math.max(
+      0,
+      playlistSize - includedSeeds.length
+    );
+    const selectedRecommendations = recommendations
+      .filter(
+        (track) =>
+          !seedIds.has(track.id) &&
+          !removedTrackIds.has(track.id)
+      )
+      .slice(0, recommendationSlots);
+
+    return [...includedSeeds, ...selectedRecommendations];
+  }, [
+    includeSeeds,
+    playlistSize,
+    recommendations,
+    removedTrackIds,
+    seeds,
+  ]);
 
   useEffect(() => {
     const savedSeeds = sessionStorage.getItem("echoSeeds");
@@ -143,29 +179,17 @@ export default function EchoPage() {
       const seedIds = new Set(
         seedTracks.map((track) => track.id)
       );
-      const includedSeedResults: EchoResult[] =
-        seedInclusion
-          ? seedTracks.map((track) => ({
-              ...track,
-              source: "seed",
-              echoScore: 100,
-              matchedSeeds: 1,
-            }))
-          : [];
-      const recommendationSlots = Math.max(
-        0,
-        size - includedSeedResults.length
-      );
       const recommendationResults: EchoResult[] = (
         data.results ?? []
       )
         .filter((track: EchoResult) => !seedIds.has(track.id))
-        .slice(0, recommendationSlots);
+        .slice(
+          0,
+          Math.max(0, size - (seedInclusion ? seedTracks.length : 0))
+        );
 
-      setResults([
-        ...includedSeedResults,
-        ...recommendationResults,
-      ]);
+      setRecommendations(recommendationResults);
+      setRemovedTrackIds(new Set());
       setMix(data.mix ?? null);
     } catch (err) {
       console.error(err);
@@ -181,9 +205,7 @@ export default function EchoPage() {
   }
 
   function removeResult(id: string) {
-    setResults((current) =>
-      current.filter((track) => track.id !== id)
-    );
+    setRemovedTrackIds((current) => new Set(current).add(id));
   }
 
   function saveToEcho() {
@@ -408,7 +430,7 @@ export default function EchoPage() {
         <section className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_390px]">
           {/* RESULTS */}
           <div>
-            {finding ? (
+            {finding && results.length === 0 ? (
               <div className="flex min-h-[400px] items-center justify-center">
                 <div className="text-center">
                   <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-zinc-800 border-t-[#1DB954]" />
@@ -426,6 +448,12 @@ export default function EchoPage() {
               <>
                 {/* SUMMARY */}
                 <div className="mb-8">
+                  {finding && (
+                    <p className="mb-2 text-sm text-zinc-600">
+                      Updating recommendations...
+                    </p>
+                  )}
+
                   <p className="text-sm text-zinc-600">
                     {results.length} songs
                   </p>
@@ -705,6 +733,13 @@ export default function EchoPage() {
                   onClick={() => {
                     const nextIncludeSeeds = !includeSeeds;
                     setIncludeSeeds(nextIncludeSeeds);
+                    if (nextIncludeSeeds) {
+                      setRemovedTrackIds((current) => {
+                        const next = new Set(current);
+                        seeds.forEach((track) => next.delete(track.id));
+                        return next;
+                      });
+                    }
                     void generateEcho(
                       seeds,
                       library,
