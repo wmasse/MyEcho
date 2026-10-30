@@ -83,6 +83,7 @@ function EchoContent() {
 
   const results = useMemo(() => {
     const seedIds = new Set(seeds.map((track) => track.id));
+
     const includedSeeds: EchoResult[] = includeSeeds
       ? seeds
           .filter((track) => !removedTrackIds.has(track.id))
@@ -93,10 +94,12 @@ function EchoContent() {
             matchedSeeds: 1,
           }))
       : [];
+
     const recommendationSlots = Math.max(
       0,
       playlistSize - includedSeeds.length
     );
+
     const selectedRecommendations = recommendations
       .filter(
         (track) =>
@@ -122,6 +125,7 @@ function EchoContent() {
         const savedEchoes: SavedEcho[] = rawSavedEchoes
           ? JSON.parse(rawSavedEchoes)
           : [];
+
         const savedEcho = savedEchoes.find(
           (echo) => echo.id === savedEchoId
         );
@@ -131,8 +135,8 @@ function EchoContent() {
           return;
         }
 
-        const savedTracks = Array.isArray(savedEcho.tracks)
-          ? savedEcho.tracks.map((track) => ({
+        const savedTracks: EchoResult[] = Array.isArray(savedEcho.tracks)
+          ? savedEcho.tracks.map((track): EchoResult => ({
               ...track,
               source:
                 track.source === "seed" || track.source === "library"
@@ -146,34 +150,53 @@ function EchoContent() {
                 : 0,
             }))
           : [];
+
         const includedSeedTracks = savedTracks.filter(
           (track) => track.source === "seed"
         );
+
         const includedSeedIds = new Set(
           includedSeedTracks.map((track) => track.id)
         );
+
         const savedSeedMetadata = Array.isArray(savedEcho.seeds)
-          ? savedEcho.seeds.filter((track) => includedSeedIds.has(track.id))
+          ? savedEcho.seeds.filter((track) =>
+              includedSeedIds.has(track.id)
+            )
           : [];
+
         const savedSeeds = includedSeedTracks.map(
           (track) =>
-            savedSeedMetadata.find((seed) => seed.id === track.id) ?? track
+            savedSeedMetadata.find(
+              (seed) => seed.id === track.id
+            ) ?? track
         );
 
         setSeeds(savedSeeds);
         setLibrary([]);
+
         setRecommendations(
           savedTracks.filter((track) => track.source !== "seed")
         );
+
         setRemovedTrackIds(new Set());
         setRemovedTracks([]);
         setMix(null);
+
         setPlaylistName(savedEcho.name || "My Echo");
-        setPlaylistSize(Math.min(50, Math.max(10, savedTracks.length)));
-        setIncludeSeeds(includedSeedTracks.length > 0);
-        setIncludeDiscovery(
-          savedTracks.some((track) => track.source === "discovery")
+
+        setPlaylistSize(
+          Math.min(50, Math.max(10, savedTracks.length))
         );
+
+        setIncludeSeeds(includedSeedTracks.length > 0);
+
+        setIncludeDiscovery(
+          savedTracks.some(
+            (track) => track.source === "discovery"
+          )
+        );
+
         setActiveSavedEchoId(savedEcho.id);
         setFinding(false);
       } catch (err) {
@@ -185,6 +208,7 @@ function EchoContent() {
     }
 
     setActiveSavedEchoId(null);
+
     const savedSeeds = sessionStorage.getItem("echoSeeds");
     const savedLibrary = sessionStorage.getItem("echoLibrary");
 
@@ -247,17 +271,17 @@ function EchoContent() {
         body: JSON.stringify({
           seeds: seedTracks,
           library: libraryTracks,
+
           playlistSize: seedInclusion
-            ? Math.max(
-                5,
-                size - seedTracks.length
-              )
+            ? Math.max(5, size - seedTracks.length)
             : size,
+
           libraryPercent: includeNewMusic
             ? hasLibraryTracks
               ? percent
               : 0
             : 100,
+
           includeDiscovery: includeNewMusic,
           includeSeeds: seedInclusion,
         }),
@@ -275,13 +299,20 @@ function EchoContent() {
       const seedIds = new Set(
         seedTracks.map((track) => track.id)
       );
+
       const recommendationResults: EchoResult[] = (
         data.results ?? []
       )
-        .filter((track: EchoResult) => !seedIds.has(track.id))
+        .filter(
+          (track: EchoResult) => !seedIds.has(track.id)
+        )
         .slice(
           0,
-          Math.max(0, size - (seedInclusion ? seedTracks.length : 0))
+          Math.max(
+            0,
+            size -
+              (seedInclusion ? seedTracks.length : 0)
+          )
         );
 
       setRecommendations(recommendationResults);
@@ -302,12 +333,19 @@ function EchoContent() {
   }
 
   function removeResult(track: EchoResult) {
-    setRemovedTrackIds((current) => new Set(current).add(track.id));
-    setRemovedTracks((current) => [...current, track]);
+    setRemovedTrackIds(
+      (current) => new Set(current).add(track.id)
+    );
+
+    setRemovedTracks(
+      (current) => [...current, track]
+    );
   }
 
   function undoLastRemoval() {
-    const track = removedTracks[removedTracks.length - 1];
+    const track =
+      removedTracks[removedTracks.length - 1];
+
     if (!track) return;
 
     setRemovedTrackIds((current) => {
@@ -315,7 +353,10 @@ function EchoContent() {
       next.delete(track.id);
       return next;
     });
-    setRemovedTracks((current) => current.slice(0, -1));
+
+    setRemovedTracks(
+      (current) => current.slice(0, -1)
+    );
   }
 
   function saveToEcho() {
@@ -339,15 +380,19 @@ function EchoContent() {
       const existingSavedEcho = existing.find(
         (echo) => echo.id === activeSavedEchoId
       );
+
       const savedPlaylist: SavedEcho = {
-        id: existingSavedEcho?.id ?? crypto.randomUUID(),
+        id:
+          existingSavedEcho?.id ??
+          crypto.randomUUID(),
 
         name:
           playlistName.trim() ||
           "My Echo",
 
         createdAt:
-          existingSavedEcho?.createdAt ?? new Date().toISOString(),
+          existingSavedEcho?.createdAt ??
+          new Date().toISOString(),
 
         tracks: results,
         seeds,
@@ -355,7 +400,9 @@ function EchoContent() {
 
       const updated = existingSavedEcho
         ? existing.map((echo) =>
-            echo.id === existingSavedEcho.id ? savedPlaylist : echo
+            echo.id === existingSavedEcho.id
+              ? savedPlaylist
+              : echo
           )
         : [savedPlaylist, ...existing];
 
@@ -368,9 +415,7 @@ function EchoContent() {
     } catch (err) {
       console.error(err);
 
-      setError(
-        "Could not save this Echo."
-      );
+      setError("Could not save this Echo.");
 
       setSavingEcho(false);
     }
@@ -390,8 +435,7 @@ function EchoContent() {
           method: "POST",
 
           headers: {
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
           },
 
           body: JSON.stringify({
@@ -609,9 +653,14 @@ function EchoContent() {
                     <p className="min-w-0 truncate text-sm text-zinc-400">
                       Removed{" "}
                       <span className="font-semibold text-white">
-                        {removedTracks[removedTracks.length - 1].name}
+                        {
+                          removedTracks[
+                            removedTracks.length - 1
+                          ].name
+                        }
                       </span>
                     </p>
+
                     <button
                       type="button"
                       onClick={undoLastRemoval}
@@ -661,18 +710,18 @@ function EchoContent() {
                             "seed"
                               ? "bg-white text-black"
                               : track.source ===
-                                "library"
-                              ? "bg-white/[0.06] text-zinc-500"
-                              : "bg-[#1DB954]/10 text-[#1DB954]"
+                                  "library"
+                                ? "bg-white/[0.06] text-zinc-500"
+                                : "bg-[#1DB954]/10 text-[#1DB954]"
                           }`}
                         >
                           {track.source ===
                           "seed"
                             ? "Seed"
                             : track.source ===
-                              "library"
-                            ? "Liked"
-                            : "New"}
+                                "library"
+                              ? "Liked"
+                              : "New"}
                         </span>
 
                         {/* SCORE */}
@@ -853,8 +902,15 @@ function EchoContent() {
                   min="0"
                   max="100"
                   step="10"
-                  value={library.length > 0 ? libraryPercent : 0}
-                  disabled={!includeDiscovery || library.length === 0}
+                  value={
+                    library.length > 0
+                      ? libraryPercent
+                      : 0
+                  }
+                  disabled={
+                    !includeDiscovery ||
+                    library.length === 0
+                  }
                   onChange={(event) =>
                     setLibraryPercent(
                       Number(
@@ -872,21 +928,43 @@ function EchoContent() {
                   type="button"
                   disabled={finding}
                   onClick={() => {
-                    const nextIncludeSeeds = !includeSeeds;
-                    setIncludeSeeds(nextIncludeSeeds);
+                    const nextIncludeSeeds =
+                      !includeSeeds;
+
+                    setIncludeSeeds(
+                      nextIncludeSeeds
+                    );
+
                     if (nextIncludeSeeds) {
-                      setRemovedTrackIds((current) => {
-                        const next = new Set(current);
-                        seeds.forEach((track) => next.delete(track.id));
-                        return next;
-                      });
-                      setRemovedTracks((current) =>
-                        current.filter(
-                          (track) =>
-                            !seeds.some((seed) => seed.id === track.id)
-                        )
+                      setRemovedTrackIds(
+                        (current) => {
+                          const next =
+                            new Set(current);
+
+                          seeds.forEach(
+                            (track) =>
+                              next.delete(
+                                track.id
+                              )
+                          );
+
+                          return next;
+                        }
+                      );
+
+                      setRemovedTracks(
+                        (current) =>
+                          current.filter(
+                            (track) =>
+                              !seeds.some(
+                                (seed) =>
+                                  seed.id ===
+                                  track.id
+                              )
+                          )
                       );
                     }
+
                     void generateEcho(
                       seeds,
                       library,
@@ -958,9 +1036,15 @@ function EchoContent() {
 
               {/* SHARE */}
               <ShareEchoButton
-                playlistName={playlistName.trim() || "My Echo"}
+                playlistName={
+                  playlistName.trim() ||
+                  "My Echo"
+                }
                 tracks={results}
-                disabled={finding || results.length === 0}
+                disabled={
+                  finding ||
+                  results.length === 0
+                }
                 className="mt-3 min-h-14 w-full rounded-full border border-white/[0.1] font-bold transition hover:bg-white/[0.06] disabled:opacity-40"
               />
 
@@ -1002,7 +1086,10 @@ function EchoLoading() {
     <main className="flex min-h-screen items-center justify-center bg-[#070707] text-white">
       <div className="text-center">
         <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-zinc-800 border-t-[#1DB954]" />
-        <p className="mt-5 font-semibold">Loading your Echo...</p>
+
+        <p className="mt-5 font-semibold">
+          Loading your Echo...
+        </p>
       </div>
     </main>
   );
