@@ -1,11 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { encodeSharedEcho } from "@/lib/shared-echo";
 
 type Props = {
   className?: string;
   playlistName: string;
-  tracks: { name: string; artist: string }[];
+  tracks: {
+    id: string;
+    uri: string;
+    name: string;
+    artist: string;
+    image: string | null;
+    source: "seed" | "library" | "discovery";
+    echoScore: number;
+  }[];
   disabled?: boolean;
 };
 
@@ -17,9 +26,7 @@ export default function ShareEchoButton({
 }: Props) {
   const [status, setStatus] =
     useState<
-      "idle" |
-      "sharing" |
-      "copied"
+      "idle" | "sharing" | "copied" | "error"
     >("idle");
 
   async function copyFallback(text: string) {
@@ -46,23 +53,26 @@ export default function ShareEchoButton({
       // Fall through to manual copy.
     }
 
-    window.prompt("Copy this playlist:", text);
-
+    window.prompt("Copy this Echo link:", text);
     setStatus("idle");
   }
 
   async function shareEcho() {
     if (tracks.length === 0) return;
 
-    const playlistText = [
-      playlistName,
-      "",
-      ...tracks.map(
-        (track, index) => `${index + 1}. ${track.name} — ${track.artist}`
-      ),
-    ].join("\n");
-
     setStatus("sharing");
+
+    let shareUrl: string;
+
+    try {
+      const encodedEcho = await encodeSharedEcho(playlistName, tracks);
+      shareUrl = `${window.location.origin}/shared#echo=${encodedEcho}`;
+    } catch (error) {
+      console.error(error);
+      setStatus("error");
+      setTimeout(() => setStatus("idle"), 2500);
+      return;
+    }
 
     /*
      * Native share sheet:
@@ -77,7 +87,8 @@ export default function ShareEchoButton({
       try {
         await navigator.share({
           title: playlistName,
-          text: playlistText,
+          text: `Open this Echo in Echo: ${playlistName}`,
+          url: shareUrl,
         });
 
         setStatus("idle");
@@ -104,7 +115,7 @@ export default function ShareEchoButton({
       }
     }
 
-    await copyFallback(playlistText);
+    await copyFallback(shareUrl);
   }
 
   return (
@@ -118,7 +129,9 @@ export default function ShareEchoButton({
         ? "Sharing..."
         : status === "copied"
         ? "Copied!"
-        : "Share playlist"}
+        : status === "error"
+        ? "Couldn’t create link"
+        : "Share Echo"}
     </button>
   );
 }
