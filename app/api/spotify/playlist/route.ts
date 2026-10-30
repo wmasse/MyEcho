@@ -44,6 +44,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (
+    uris.some(
+      (uri) =>
+        typeof uri !== "string" ||
+        !/^spotify:track:[A-Za-z0-9]+$/.test(uri)
+    )
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "This playlist includes tracks that are not available on Spotify.",
+      },
+      { status: 400 }
+    );
+  }
+
   // Create playlist
   const createResponse = await fetch(
     "https://api.spotify.com/v1/me/playlists",

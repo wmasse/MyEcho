@@ -505,6 +505,10 @@ function EchoContent() {
         track.source === "discovery"
     ).length;
 
+  const hasOnlySpotifyTracks = results.every(
+    (track) => /^spotify:track:[A-Za-z0-9]+$/.test(track.uri)
+  );
+
   return (
     <main className="min-h-screen bg-[#070707] text-white">
       {/* BACKGROUND */}
@@ -554,7 +558,7 @@ function EchoContent() {
               ? "This is the Echo you saved. Your songs are ready to revisit or send to Spotify."
               : library.length > 0
                 ? "Adjust the balance between songs you already love and music you haven't discovered yet."
-                : "Your library wasn't loaded, so this blend will use your chosen songs and new music from Spotify."}
+                : "Your library wasn't loaded, so this blend will use your chosen songs and related music from Spotify or Apple Music."}
           </p>
 
           {/* SEEDS */}
@@ -602,7 +606,7 @@ function EchoContent() {
                   </p>
 
                   <p className="mt-2 text-sm text-zinc-600">
-                    Searching around the songs you chose.
+                    Searching Spotify and Apple Music around the songs you chose.
                   </p>
                 </div>
               </div>
@@ -1058,22 +1062,37 @@ function EchoContent() {
                 disabled={
                   savingSpotify ||
                   !SPOTIFY_PLAYLISTS_ENABLED ||
+                  !hasOnlySpotifyTracks ||
                   finding ||
                   results.length === 0
                 }
-                title={SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE}
+                title={
+                  !SPOTIFY_PLAYLISTS_ENABLED
+                    ? SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE
+                    : hasOnlySpotifyTracks
+                      ? ""
+                      : "This Echo includes Apple Music tracks, which Spotify cannot add to a playlist."
+                }
                 className="mt-3 min-h-14 w-full rounded-full bg-[#1DB954] font-bold text-black transition hover:scale-[1.01] hover:bg-[#22cf63] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {SPOTIFY_PLAYLISTS_ENABLED
-                  ? savingSpotify
-                    ? "Saving..."
-                    : "Save to Spotify"
+                  ? !hasOnlySpotifyTracks
+                    ? "Spotify needs Spotify tracks"
+                    : savingSpotify
+                      ? "Saving..."
+                      : "Save to Spotify"
                   : "Spotify playlists paused"}
               </button>
 
               {!SPOTIFY_PLAYLISTS_ENABLED && (
                 <p className="mt-2 text-center text-xs leading-5 text-zinc-500">
                   {SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE}
+                </p>
+              )}
+
+              {SPOTIFY_PLAYLISTS_ENABLED && !hasOnlySpotifyTracks && (
+                <p className="mt-2 text-center text-xs leading-5 text-zinc-500">
+                  This Echo includes Apple Music tracks. Save it here or share the link.
                 </p>
               )}
 

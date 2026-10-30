@@ -1812,7 +1812,7 @@ export default function Home() {
 
                   {showingAppleSearchFallback && (
                     <p className="mt-2 text-zinc-500">
-                      Found in Apple Music’s catalog. Select songs here as Echo seeds; generating an Echo still uses Spotify.
+                      Found in Apple Music’s catalog. Select these songs as seeds; Echo can find related tracks from Apple Music or Spotify.
                     </p>
                   )}
 

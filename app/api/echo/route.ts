@@ -8,6 +8,7 @@ type Track = {
   artist: string;
   album: string;
   image: string | null;
+  externalUrl?: string;
 };
 
 type LastFmTrack = {
@@ -59,6 +60,15 @@ type SpotifySearchTrack = {
       url: string;
     }[];
   };
+};
+
+type AppleSearchTrack = {
+  trackId?: number;
+  trackName?: string;
+  artistName?: string;
+  collectionName?: string;
+  artworkUrl100?: string;
+  trackViewUrl?: string;
 };
 
 function clamp(
@@ -146,6 +156,121 @@ function spotifyTrackToTrack(
       track.album?.images?.[0]
         ?.url ?? null,
   };
+}
+
+function appleTrackToTrack(
+  track: AppleSearchTrack
+): Track | null {
+  if (
+    !Number.isInteger(track.trackId) ||
+    !track.trackName ||
+    !track.artistName
+  ) {
+    return null;
+  }
+
+  return {
+    id: `apple:${track.trackId}`,
+    uri: `apple:track:${track.trackId}`,
+    name: track.trackName,
+    artist: track.artistName,
+    album: track.collectionName ?? "",
+    image:
+      track.artworkUrl100?.replace(
+        "100x100",
+        "600x600"
+      ) ?? null,
+    externalUrl:
+      track.trackViewUrl ??
+      `https://music.apple.com/us/search?term=${encodeURIComponent(
+        `${track.trackName} ${track.artistName}`
+      )}`,
+  };
+}
+
+async function searchAppleTracks(
+  term: string,
+  limit = 25
+): Promise<Track[]> {
+  const params = new URLSearchParams({
+    term,
+    country: "us",
+    media: "music",
+    entity: "song",
+    limit: String(Math.min(Math.max(limit, 1), 25)),
+  });
+
+  try {
+    const response = await fetch(
+      `https://itunes.apple.com/search?${params.toString()}`,
+      {
+        headers: {
+          "User-Agent": "Echo/0.1 music search",
+        },
+        cache: "no-store",
+      }
+    );
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const data = await response.json();
+    const tracks: AppleSearchTrack[] = Array.isArray(data?.results)
+      ? data.results
+      : [];
+
+    return tracks
+      .map(appleTrackToTrack)
+      .filter((track): track is Track => track !== null);
+  } catch (error) {
+    console.error("Apple catalog recommendation search failed:", error);
+    return [];
+  }
+}
+
+async function findAppleTrack(
+  candidate: Candidate
+): Promise<Track | null> {
+  const tracks = await searchAppleTracks(
+    `${candidate.name} ${candidate.artist}`,
+    10
+  );
+
+  if (tracks.length === 0) {
+    return null;
+  }
+
+  const wantedName = normalize(candidate.name);
+  const wantedArtist = normalize(candidate.artist);
+
+  return (
+    tracks.find(
+      (track) =>
+        normalize(track.name) === wantedName &&
+        normalize(track.artist) === wantedArtist
+    ) ??
+    tracks.find(
+      (track) =>
+        normalize(track.name) === wantedName &&
+        normalize(track.artist).includes(wantedArtist)
+    ) ??
+    tracks[0]
+  );
+}
+
+async function findRecommendationTrack(
+  token: string | null,
+  candidate: Candidate
+): Promise<Track | null> {
+  if (token) {
+    const spotifyTrack = await findSpotifyTrack(token, candidate);
+    if (spotifyTrack) {
+      return spotifyTrack;
+    }
+  }
+
+  return findAppleTrack(candidate);
 }
 
 /*
@@ -499,11 +624,33 @@ async function searchArtistTracks(
   }
 }
 
+async function searchRecommendationArtistTracks(
+  token: string | null,
+  artist: string
+): Promise<Track[]> {
+  if (token) {
+    const spotifyTracks = await searchArtistTracks(token, artist);
+    if (spotifyTracks.length > 0) {
+      return spotifyTracks;
+    }
+  }
+
+  const appleTracks = await searchAppleTracks(artist, 25);
+  const wantedArtist = normalize(artist);
+  const exactArtistTracks = appleTracks.filter(
+    (track) => normalize(track.artist) === wantedArtist
+  );
+
+  return exactArtistTracks.length > 0
+    ? exactArtistTracks
+    : appleTracks;
+}
+
 /*
  * Resolve direct Last.fm track recommendations.
  */
 async function resolveDirectDiscoveries(
-  token: string,
+  token: string | null,
   candidates: Candidate[],
   maxNeeded: number,
   libraryIds: Set<string>,
@@ -557,7 +704,7 @@ async function resolveDirectDiscoveries(
             candidate,
 
             track:
-              await findSpotifyTrack(
+              await findRecommendationTrack(
                 token,
                 candidate
               ),
@@ -614,30 +761,14 @@ export async function POST(
   const lastFmApiKey =
     process.env.LASTFM_API_KEY;
 
-  if (!lastFmApiKey) {
-    return NextResponse.json(
-      {
-        error:
-          "Missing LASTFM_API_KEY.",
-      },
-      {
-        status: 500,
-      }
-    );
-  }
+  let spotifyToken: string | null = null;
 
-  const spotifyToken =
-    await getSpotifyAccessToken();
-
-  if (!spotifyToken) {
-    return NextResponse.json(
-      {
-        error:
-          "Spotify authentication expired.",
-      },
-      {
-        status: 401,
-      }
+  try {
+    spotifyToken = await getSpotifyAccessToken();
+  } catch (error) {
+    console.error(
+      "Spotify token unavailable; using Apple Music catalog fallback:",
+      error
     );
   }
 
@@ -761,15 +892,16 @@ export async function POST(
    * DIRECT SIMILAR TRACKS
    * -------------------------------------------------
    */
-  const trackNeighborhoods =
-    await Promise.all(
-      seeds.map((seed) =>
-        getSimilarTracks(
-          seed,
-          lastFmApiKey
+  const trackNeighborhoods = lastFmApiKey
+    ? await Promise.all(
+        seeds.map((seed) =>
+          getSimilarTracks(
+            seed,
+            lastFmApiKey
+          )
         )
       )
-    );
+    : seeds.map(() => [] as Candidate[]);
 
   const candidateMap =
     new Map<string, Candidate>();
@@ -1052,15 +1184,17 @@ export async function POST(
       );
 
     const artistNeighborhoods =
-      await Promise.all(
-        uniqueSeedArtists.map(
-          (artist) =>
-            getSimilarArtists(
-              artist,
-              lastFmApiKey
+      lastFmApiKey
+        ? await Promise.all(
+            uniqueSeedArtists.map(
+              (artist) =>
+                getSimilarArtists(
+                  artist,
+                  lastFmApiKey
+                )
             )
-        )
-      );
+          )
+        : [];
 
     for (
       const neighborhood of artistNeighborhoods
@@ -1206,7 +1340,7 @@ export async function POST(
       }
 
       const artistTracks =
-        await searchArtistTracks(
+        await searchRecommendationArtistTracks(
           spotifyToken,
           artistSignal.name
         );
@@ -1278,7 +1412,7 @@ export async function POST(
       }
 
       const artistTracks =
-        await searchArtistTracks(
+        await searchRecommendationArtistTracks(
           spotifyToken,
           artist
         );

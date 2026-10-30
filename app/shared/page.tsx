@@ -92,12 +92,17 @@ export default function SharedEchoPage() {
                         : "New"}
                   </span>
                   <a
-                    href={`https://open.spotify.com/track/${encodeURIComponent(track.id)}`}
+                    href={
+                      track.externalUrl ??
+                      `https://open.spotify.com/track/${encodeURIComponent(track.id)}`
+                    }
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs text-zinc-600 transition hover:text-white"
                   >
-                    Open
+                    {track.externalUrl?.includes("music.apple.com")
+                      ? "Apple Music ↗"
+                      : "Open ↗"}
                   </a>
                 </div>
               ))}

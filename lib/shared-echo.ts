@@ -5,6 +5,7 @@ export type SharedEchoTrack = {
   artist: string;
   album: string;
   image: string | null;
+  externalUrl?: string;
   source: "seed" | "library" | "discovery";
   echoScore: number;
   matchedSeeds: number;
@@ -22,6 +23,7 @@ type EncodedTrack = [
   string, // artist
   string, // album
   string | null, // image
+  string | null, // external URL
   SharedEchoTrack["source"], // source
   number, // echoScore
   number, // matchedSeeds
@@ -34,6 +36,11 @@ const ALLOWED_IMAGE_HOSTS = new Set([
   "image-cdn-fa.spotifycdn.com",
   "image-cdn-ak.spotifycdn.com",
   "i.scdn.co",
+]);
+
+const ALLOWED_EXTERNAL_HOSTS = new Set([
+  "music.apple.com",
+  "open.spotify.com",
 ]);
 
 function toBase64Url(bytes: Uint8Array) {
@@ -158,9 +165,8 @@ function safeImageUrl(
 
     if (
       url.protocol !== "https:" ||
-      !ALLOWED_IMAGE_HOSTS.has(
-        url.hostname
-      )
+      (!ALLOWED_IMAGE_HOSTS.has(url.hostname) &&
+        !url.hostname.endsWith(".mzstatic.com"))
     ) {
       return null;
     }
@@ -168,6 +174,29 @@ function safeImageUrl(
     return url.toString();
   } catch {
     return null;
+  }
+}
+
+function safeExternalUrl(
+  value: unknown
+): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  try {
+    const url = new URL(value);
+
+    if (
+      url.protocol !== "https:" ||
+      !ALLOWED_EXTERNAL_HOSTS.has(url.hostname)
+    ) {
+      return undefined;
+    }
+
+    return url.toString();
+  } catch {
+    return undefined;
   }
 }
 
@@ -194,6 +223,7 @@ export async function encodeSharedEcho(
         track.artist,
         track.album,
         safeImageUrl(track.image),
+        safeExternalUrl(track.externalUrl) ?? null,
         track.source,
         track.echoScore,
         track.matchedSeeds,
@@ -276,9 +306,11 @@ function decodePayload(
     const [id, uri, name, artist] = item;
     const album = isCurrentFormat ? item[4] : "";
     const image = isCurrentFormat ? item[5] : item[4];
-    const source = isCurrentFormat ? item[6] : item[5];
-    const echoScore = isCurrentFormat ? item[7] : item[6];
-    const matchedSeeds = isCurrentFormat ? item[8] : 0;
+    const hasExternalUrl = item.length >= 10;
+    const externalUrl = hasExternalUrl ? item[6] : undefined;
+    const source = isCurrentFormat ? item[hasExternalUrl ? 7 : 6] : item[5];
+    const echoScore = isCurrentFormat ? item[hasExternalUrl ? 8 : 7] : item[6];
+    const matchedSeeds = isCurrentFormat ? item[hasExternalUrl ? 9 : 8] : 0;
 
     if (
       typeof id !== "string" ||
@@ -317,6 +349,8 @@ function decodePayload(
       album,
       image:
         safeImageUrl(image),
+      externalUrl:
+        safeExternalUrl(externalUrl),
       source: safeSource,
       echoScore:
         typeof echoScore ===

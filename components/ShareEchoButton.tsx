@@ -13,6 +13,7 @@ type Props = {
     artist: string;
     album: string;
     image: string | null;
+    externalUrl?: string;
     source: "seed" | "library" | "discovery";
     echoScore: number;
     matchedSeeds: number;
