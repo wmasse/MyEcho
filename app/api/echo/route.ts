@@ -803,6 +803,19 @@ export async function POST(
     body.includeDiscovery !==
     false;
 
+  const includeSeeds =
+    body.includeSeeds !== false;
+
+  const requestedArtistLimit = Number(
+    body.maxSongsPerArtist ?? 4
+  );
+
+  const maxSongsPerArtist = Number.isFinite(
+    requestedArtistLimit
+  )
+    ? clamp(requestedArtistLimit, 1, 50)
+    : 4;
+
   if (
     seeds.length < 1 ||
     seeds.length > 5
@@ -1504,18 +1517,28 @@ export async function POST(
   const selectedLibrary:
     RankedTrack[] = [];
 
-  const selectedLibraryIds =
-    new Set<string>();
-
   const artistCounts =
     new Map<
       string,
       number
     >();
 
+  if (includeSeeds) {
+    for (const seed of seeds) {
+      const artistKey = normalize(
+        primaryArtist(seed.artist)
+      );
+
+      artistCounts.set(
+        artistKey,
+        (artistCounts.get(artistKey) ?? 0) + 1
+      );
+    }
+  }
+
   /*
-   * First pass:
-   * Encourage variety.
+   * Choose the strongest Liked Songs while
+   * honoring the artist limit.
    */
   for (
     const item of rankedLibrary
@@ -1539,16 +1562,12 @@ export async function POST(
         artistKey
       ) ?? 0;
 
-    if (count >= 4) {
+    if (count >= maxSongsPerArtist) {
       continue;
     }
 
     selectedLibrary.push(
       item
-    );
-
-    selectedLibraryIds.add(
-      item.track.id
     );
 
     artistCounts.set(
@@ -1558,58 +1577,31 @@ export async function POST(
   }
 
   /*
-   * Second pass:
-   * If we still need Liked Songs,
-   * relax the artist diversity limit.
-   */
-  if (
-    selectedLibrary.length <
-    requestedLibrary
-  ) {
-    for (
-      const item of rankedLibrary
-    ) {
-      if (
-        selectedLibrary.length >=
-        requestedLibrary
-      ) {
-        break;
-      }
-
-      if (
-        selectedLibraryIds.has(
-          item.track.id
-        )
-      ) {
-        continue;
-      }
-
-      selectedLibrary.push(
-        item
-      );
-
-      selectedLibraryIds.add(
-        item.track.id
-      );
-    }
-  }
-
-  /*
    * Final discovery list.
    */
-  selectedDiscovery =
-    Array.from(
-      discoveryMap.values()
-    )
-      .sort(
-        (a, b) =>
-          b.score -
-          a.score
-      )
-      .slice(
-        0,
-        requestedDiscovery
-      );
+  selectedDiscovery = [];
+
+  const rankedDiscovery = Array.from(
+    discoveryMap.values()
+  ).sort((a, b) => b.score - a.score);
+
+  for (const item of rankedDiscovery) {
+    if (selectedDiscovery.length >= requestedDiscovery) {
+      break;
+    }
+
+    const artistKey = normalize(
+      primaryArtist(item.track.artist)
+    );
+    const count = artistCounts.get(artistKey) ?? 0;
+
+    if (count >= maxSongsPerArtist) {
+      continue;
+    }
+
+    selectedDiscovery.push(item);
+    artistCounts.set(artistKey, count + 1);
+  }
 
   /*
    * Preserve requested category limits.

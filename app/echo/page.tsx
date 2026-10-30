@@ -67,6 +67,7 @@ function EchoContent() {
 
   const [playlistSize, setPlaylistSize] = useState(25);
   const [libraryPercent, setLibraryPercent] = useState(70);
+  const [maxSongsPerArtist, setMaxSongsPerArtist] = useState(4);
 
   const [includeDiscovery, setIncludeDiscovery] = useState(true);
   const [includeSeeds, setIncludeSeeds] = useState(true);
@@ -254,7 +255,8 @@ function EchoContent() {
     size = playlistSize,
     percent = libraryPercent,
     discovery = includeDiscovery,
-    seedInclusion = includeSeeds
+    seedInclusion = includeSeeds,
+    artistLimit = maxSongsPerArtist
   ) {
     if (seedTracks.length === 0) return;
 
@@ -289,6 +291,7 @@ function EchoContent() {
 
           includeDiscovery: includeNewMusic,
           includeSeeds: seedInclusion,
+          maxSongsPerArtist: artistLimit,
         }),
       });
 
@@ -832,6 +835,26 @@ function EchoContent() {
                   }
                   className="mt-4 w-full accent-[#1DB954]"
                 />
+
+                <label className="mt-5 flex items-center justify-between gap-4 text-sm text-zinc-400">
+                  <span>Max songs per artist</span>
+                  <select
+                    value={maxSongsPerArtist}
+                    onChange={(event) =>
+                      setMaxSongsPerArtist(
+                        Number(event.target.value)
+                      )
+                    }
+                    className="rounded-lg border border-white/[0.1] bg-[#181818] px-3 py-2 text-sm text-white outline-none focus:border-[#1DB954]/60"
+                  >
+                    {[1, 2, 3, 4, 5, 6, 8, 10].map((limit) => (
+                      <option key={limit} value={limit}>
+                        {limit} {limit === 1 ? "song" : "songs"}
+                      </option>
+                    ))}
+                    <option value={50}>No limit</option>
+                  </select>
+                </label>
               </div>
 
               {/* DISCOVERY */}
@@ -979,7 +1002,8 @@ function EchoContent() {
                       playlistSize,
                       libraryPercent,
                       includeDiscovery,
-                      nextIncludeSeeds
+                      nextIncludeSeeds,
+                      maxSongsPerArtist
                     );
                   }}
                   className="flex w-full items-center justify-between text-left disabled:cursor-not-allowed disabled:opacity-50"
