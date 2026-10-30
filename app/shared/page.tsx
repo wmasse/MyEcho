@@ -2,14 +2,26 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   decodeSharedEchoFragment,
   type SharedEcho,
 } from "@/lib/shared-echo";
 
+type SavedEcho = {
+  id: string;
+  name: string;
+  createdAt: string;
+  tracks: SharedEcho["tracks"];
+  seeds: SharedEcho["tracks"];
+};
+
 export default function SharedEchoPage() {
+  const router = useRouter();
   const [echo, setEcho] = useState<SharedEcho | null>(null);
   const [loading, setLoading] = useState(true);
+  const [remixing, setRemixing] = useState(false);
+  const [remixError, setRemixError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -24,6 +36,44 @@ export default function SharedEchoPage() {
       cancelled = true;
     };
   }, []);
+
+  function remixEcho() {
+    if (!echo || remixing) return;
+
+    setRemixing(true);
+    setRemixError("");
+
+    try {
+      const rawSavedEchoes = localStorage.getItem("echoSavedPlaylists");
+      const parsedSavedEchoes = rawSavedEchoes
+        ? JSON.parse(rawSavedEchoes)
+        : [];
+
+      if (!Array.isArray(parsedSavedEchoes)) {
+        throw new Error("Saved Echoes are not available.");
+      }
+
+      const savedEchoes = parsedSavedEchoes as SavedEcho[];
+      const remix: SavedEcho = {
+        id: crypto.randomUUID(),
+        name: `${echo.name} (Remix)`,
+        createdAt: new Date().toISOString(),
+        tracks: echo.tracks,
+        seeds: echo.tracks.filter((track) => track.source === "seed"),
+      };
+
+      localStorage.setItem(
+        "echoSavedPlaylists",
+        JSON.stringify([remix, ...savedEchoes])
+      );
+
+      router.push(`/echo?saved=${encodeURIComponent(remix.id)}`);
+    } catch (error) {
+      console.error(error);
+      setRemixError("Couldn’t save this remix in your browser. Try again.");
+      setRemixing(false);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#070707] text-white">
@@ -109,16 +159,31 @@ export default function SharedEchoPage() {
             </section>
 
             <div className="mt-12 rounded-[28px] border border-white/[0.07] bg-[#111111] px-7 py-8">
-              <p className="text-xl font-bold">Want your own Echo?</p>
+              <p className="text-xl font-bold">Make it yours.</p>
               <p className="mt-2 text-sm leading-6 text-zinc-500">
-                Pick a few songs and Echo will build a playlist around their sound.
+                Save an editable copy to your Echoes, then change the songs or name.
               </p>
-              <Link
-                href="/"
-                className="mt-6 inline-flex min-h-12 items-center rounded-full bg-[#1DB954] px-6 font-bold text-black transition hover:scale-[1.02]"
-              >
-                Create an Echo
-              </Link>
+              {remixError && (
+                <p role="alert" className="mt-4 text-sm text-red-400">
+                  {remixError}
+                </p>
+              )}
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={remixEcho}
+                  disabled={remixing || echo.tracks.length === 0}
+                  className="inline-flex min-h-12 items-center rounded-full bg-[#1DB954] px-6 font-bold text-black transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {remixing ? "Saving remix..." : "Remix this Echo"}
+                </button>
+                <Link
+                  href="/"
+                  className="inline-flex min-h-12 items-center rounded-full border border-white/[0.1] px-6 font-semibold text-zinc-300 transition hover:bg-white/[0.06] hover:text-white"
+                >
+                  Create an Echo
+                </Link>
+              </div>
             </div>
           </>
         ) : (
