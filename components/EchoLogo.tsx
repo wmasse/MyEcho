@@ -1,6 +1,10 @@
 import Link from "next/link";
 
-export default function EchoLogo() {
+export default function EchoLogo({
+  size = "default",
+}: {
+  size?: "default" | "home";
+}) {
   return (
     <Link
       href="/"
@@ -9,7 +13,11 @@ export default function EchoLogo() {
     >
       <svg
         aria-hidden="true"
-        className="h-12 w-[168px] sm:h-16 sm:w-56"
+        className={
+          size === "home"
+            ? "h-12 w-[168px] sm:h-16 sm:w-56 lg:h-24 lg:w-[336px]"
+            : "h-12 w-[168px] sm:h-16 sm:w-56"
+        }
         viewBox="0 0 224 64"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
