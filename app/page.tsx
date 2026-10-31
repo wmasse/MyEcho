@@ -1458,12 +1458,13 @@ export default function Home() {
             )}
 
             <button
+              type="button"
               onClick={() =>
                 router.push(
                   "/saved"
                 )
               }
-              className="text-sm text-zinc-500 transition hover:text-white"
+              className="inline-flex items-center rounded-full border border-[#1DB954]/35 bg-[#1DB954]/[0.08] px-4 py-2 text-base font-medium text-[#1DB954] shadow-[0_0_14px_rgba(29,185,84,0.14)] transition-all duration-200 hover:border-[#1DB954]/60 hover:bg-[#1DB954]/[0.14] hover:text-[#7ef0a1] hover:shadow-[0_0_20px_rgba(29,185,84,0.24)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070707]"
             >
               Saved
             </button>

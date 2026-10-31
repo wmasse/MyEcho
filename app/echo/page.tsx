@@ -1155,7 +1155,7 @@ function EchoContent() {
                   finding ||
                   results.length === 0
                 }
-                className="mt-3 min-h-14 w-full rounded-full border border-white/[0.1] font-bold transition hover:bg-white/[0.06] disabled:opacity-40"
+                className="mt-3 min-h-16 w-full rounded-full border border-[#1DB954]/40 bg-[#1DB954]/10 text-lg font-bold text-[#75e39a] shadow-[0_0_18px_rgba(29,185,84,0.14)] transition hover:border-[#1DB954]/60 hover:bg-[#1DB954]/15 hover:shadow-[0_0_24px_rgba(29,185,84,0.2)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1DB954] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
               >
                 {savingEcho
                   ? "Saving..."
