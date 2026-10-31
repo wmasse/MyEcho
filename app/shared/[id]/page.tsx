@@ -1,7 +1,24 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import type { Metadata } from "next";
 import EchoLogo from "@/components/EchoLogo";
 import SharedEchoById from "./SharedEchoById";
+
+export const metadata: Metadata = {
+  title: "Shared Echo | Echo",
+  description: "A music mix made with Echo. Open it and discover your next favorite.",
+  openGraph: {
+    title: "Shared Echo | Echo",
+    description: "A music mix made with Echo. Open it and discover your next favorite.",
+    siteName: "Echo",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Shared Echo | Echo",
+    description: "A music mix made with Echo. Open it and discover your next favorite.",
+  },
+};
 
 export default function SharedEchoByIdPage() {
   return (
