@@ -1,42 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Echo
 
-## Getting Started
+Echo helps you build music mixes from a few songs you choose. You can use your Spotify liked songs, find related tracks from Spotify or Apple Music, save mixes in your browser, and share an Echo with a link.
 
-First, run the development server:
+## Run locally
+
+Install dependencies and start the Next.js development server:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). Spotify features use the `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, and `SPOTIFY_REDIRECT_URI` environment variables. Genre lookup and some recommendations use `LASTFM_API_KEY`. Set `NEXT_PUBLIC_SPOTIFY_PLAYLISTS_ENABLED=false` to pause creating playlists on Spotify.
 
-## Spotify playlist creation
+## Short shared links
 
-Creating playlists in Spotify is enabled by default. To pause it, set
-`NEXT_PUBLIC_SPOTIFY_PLAYLISTS_ENABLED=false` and restart the dev server or
-rebuild the deployment. Echoes can still be saved in the app or shared as links.
+Sharing saves an Echo to a private Vercel Blob store and creates a short link at `/shared/{id}`. In the Vercel project, create a private Blob store and connect it to the environments where the app runs. For local development, add the store's `BLOB_READ_WRITE_TOKEN` to `.env.local`. Sharing is unavailable until the Blob store is connected. Existing `/shared#echo=...` links remain readable.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project files
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This guide covers the files checked into the repository. `node_modules`, `.next`, and other generated files are created locally and are not listed here.
 
-## Learn More
+### App pages and styles
 
-To learn more about Next.js, take a look at the following resources:
+| File | Language | Purpose |
+| --- | --- | --- |
+| `app/page.tsx` | TypeScript with React JSX (TSX) | Home page. Lets you connect Spotify, search for seed songs, choose tracks from your library, and start building an Echo. |
+| `app/echo/page.tsx` | TypeScript with React JSX (TSX) | Echo builder. Requests recommendations, lets you tune and edit the mix, then save it in the browser, share it, or create a Spotify playlist. |
+| `app/shared/page.tsx` | TypeScript with React JSX (TSX) | Opens a legacy fragment-based shared Echo and lets the visitor save a remix to their browser. |
+| `app/shared/[id]/page.tsx` | TypeScript with React JSX (TSX) | Opens a shared Echo addressed by its short ID. |
+| `app/saved/page.tsx` | TypeScript with React JSX (TSX) | Lists browser-saved Echoes and supports renaming, editing, deleting, and sending them to Spotify. |
+| `app/saved/[id]/page.tsx` | TypeScript with React JSX (TSX) | Shows one saved Echo selected by its ID. Supports renaming tracks and saving the mix to Spotify. |
+| `app/layout.tsx` | TypeScript with React JSX (TSX) | Defines the shared HTML document structure, page metadata, and global stylesheet for all routes. |
+| `app/globals.css` | CSS with Tailwind CSS | Imports Tailwind, sets global colors and fonts, and defines the album-cover animation. |
+| `app/favicon.ico` | ICO image (binary) | Browser tab and bookmark icon served by Next.js. |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### API routes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| File | Language | Purpose |
+| --- | --- | --- |
+| `app/api/echo/route.ts` | TypeScript | Builds an Echo recommendation list from seed songs and optional liked songs. Uses Last.fm similarity signals and resolves recommendations against Spotify or Apple Music catalogs. |
+| `app/api/liked/route.ts` | TypeScript | Reads a page of the connected Spotify user's liked songs and returns normalized track data. |
+| `app/api/spotify/login/route.ts` | TypeScript | Starts Spotify OAuth sign-in and requests access to the library and, when enabled, playlist creation. |
+| `app/api/spotify/callback/route.ts` | TypeScript | Validates Spotify's OAuth callback, exchanges the authorization code for tokens, and stores them in secure cookies. |
+| `app/api/spotify/search/route.ts` | TypeScript | Searches Spotify's catalog for songs using the user's access token. |
+| `app/api/spotify/playlist/route.ts` | TypeScript | Creates a private Spotify playlist and adds the supplied Spotify track URIs. Respects the playlist creation setting. |
+| `app/api/apple/search/route.ts` | TypeScript | Searches Apple's public music catalog and returns normalized song data, including Apple Music links. |
+| `app/api/genre/route.ts` | TypeScript | Looks up one artist's Last.fm tags and maps them to an Echo genre. |
+| `app/api/genre/batch/route.ts` | TypeScript | Looks up genres for several artists in small concurrent groups to reduce the number of browser requests. |
+| `app/api/shared/route.ts` | TypeScript | Validates and stores an Echo in private Vercel Blob, then returns its short ID. |
+| `app/api/shared/[id]/route.ts` | TypeScript | Loads a stored Echo by short ID. |
 
-## Deploy on Vercel
+### Shared components and libraries
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| File | Language | Purpose |
+| --- | --- | --- |
+| `components/EchoLogo.tsx` | TypeScript with React JSX (TSX) | Reusable Echo wordmark and home link. |
+| `components/ShareEchoButton.tsx` | TypeScript with React JSX (TSX) | Saves an Echo for sharing, then uses the device share sheet or copies the short link as a fallback. |
+| `components/SharedEchoView.tsx` | TypeScript with React JSX (TSX) | Displays a shared Echo and lets the visitor save a remix to their browser. |
+| `lib/shared-echo.ts` | TypeScript | Validates shared Echo data and reads older fragment-based links. |
+| `lib/spotify.ts` | TypeScript | Retrieves the Spotify access token from cookies or refreshes it using the stored refresh token. |
+| `lib/spotify-playlists.ts` | TypeScript | Reads the playlist creation setting and provides the message shown when that feature is paused. |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Configuration and project metadata
+
+| File | Language | Purpose |
+| --- | --- | --- |
+| `package.json` | JSON | Project metadata, dependencies, and npm scripts for development, production builds, serving, and linting. |
+| `package-lock.json` | JSON | Locks the exact npm dependency versions used for repeatable installs. |
+| `next.config.ts` | TypeScript | Next.js configuration, including allowed development origins, remote image hosts, caching, and the CSS build rule. |
+| `tsconfig.json` | JSON | TypeScript compiler settings, including strict checking and the `@/` import alias. |
+| `eslint.config.mjs` | JavaScript ES module | ESLint configuration using the Next.js Core Web Vitals and TypeScript rules. |
+| `.gitignore` | Git ignore patterns | Excludes dependencies, build output, local environment files, logs, and other generated or machine-specific files from Git. |
+| `AGENTS.md` | Markdown | Repository-specific instructions for coding agents, including the requirement to consult the installed Next.js guides before changing code. |
+| `README.md` | Markdown | This project overview, local startup note, and file-by-file guide. |
+
+### Public image assets
+
+These SVG files are static vector images stored in `public/` and can be served directly by the app.
+
+| File | Language / format | Purpose |
+| --- | --- | --- |
+| `public/file.svg` | SVG (XML-based vector markup) | File/document icon asset. |
+| `public/globe.svg` | SVG (XML-based vector markup) | Globe icon asset. |
+| `public/next.svg` | SVG (XML-based vector markup) | Next.js logo asset. |
+| `public/vercel.svg` | SVG (XML-based vector markup) | Vercel logo asset. |
+| `public/window.svg` | SVG (XML-based vector markup) | Browser-window icon asset. |

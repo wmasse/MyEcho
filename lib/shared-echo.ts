@@ -382,6 +382,59 @@ function decodePayload(
   };
 }
 
+export function normalizeSharedEcho(
+  value: unknown
+): SharedEcho | null {
+  if (
+    !value ||
+    typeof value !== "object"
+  ) {
+    return null;
+  }
+
+  const input = value as {
+    name?: unknown;
+    tracks?: unknown;
+  };
+
+  if (
+    !Array.isArray(input.tracks) ||
+    input.tracks.length > MAX_TRACKS
+  ) {
+    return null;
+  }
+
+  const tracks = input.tracks.map((value) => {
+    if (
+      !value ||
+      typeof value !== "object"
+    ) {
+      return null;
+    }
+
+    const track = value as Partial<SharedEchoTrack>;
+
+    return [
+      track.id,
+      track.uri,
+      track.name,
+      track.artist,
+      track.album,
+      track.image,
+      track.externalUrl ?? null,
+      track.source,
+      track.echoScore,
+      track.matchedSeeds,
+    ];
+  });
+
+  return decodePayload({
+    v: 1,
+    n: typeof input.name === "string" ? input.name : "My Echo",
+    t: tracks,
+  });
+}
+
 export async function decodeSharedEchoFragment(
   fragment: string
 ): Promise<SharedEcho | null> {

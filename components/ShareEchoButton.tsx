@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { encodeSharedEcho } from "@/lib/shared-echo";
 
 type Props = {
   className?: string;
@@ -68,8 +67,32 @@ export default function ShareEchoButton({
     let shareUrl: string;
 
     try {
-      const encodedEcho = await encodeSharedEcho(playlistName, tracks);
-      shareUrl = `${window.location.origin}/shared#echo=${encodedEcho}`;
+      const response = await fetch("/api/shared", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: playlistName,
+          tracks,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Could not save this Echo for sharing.");
+      }
+
+      const result: unknown = await response.json();
+      const id =
+        result && typeof result === "object"
+          ? (result as { id?: unknown }).id
+          : null;
+
+      if (typeof id !== "string") {
+        throw new Error("The share link could not be created.");
+      }
+
+      shareUrl = `${window.location.origin}/shared/${encodeURIComponent(id)}`;
     } catch (error) {
       console.error(error);
       setStatus("error");
