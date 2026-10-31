@@ -156,6 +156,34 @@ function normalizeSearchText(
     .trim();
 }
 
+function parseRetryAfterSeconds(
+  value: string | null
+) {
+  if (!value) {
+    return null;
+  }
+
+  const seconds = Number(value);
+
+  if (
+    Number.isFinite(seconds) &&
+    seconds >= 0
+  ) {
+    return seconds;
+  }
+
+  const retryAt = Date.parse(value);
+
+  if (Number.isNaN(retryAt)) {
+    return null;
+  }
+
+  return Math.max(
+    0,
+    (retryAt - Date.now()) / 1000
+  );
+}
+
 export default function Home() {
   const router = useRouter();
 
@@ -245,6 +273,16 @@ export default function Home() {
     spotifySearchError,
     setSpotifySearchError,
   ] = useState("");
+
+  const [
+    spotifyRetryUntil,
+    setSpotifyRetryUntil,
+  ] = useState<number | null>(null);
+
+  const [
+    spotifyCountdownNow,
+    setSpotifyCountdownNow,
+  ] = useState(0);
 
   const [
     appleSearchError,
@@ -345,6 +383,30 @@ export default function Home() {
   useEffect(() => {
     tracksRef.current = tracks;
   }, [tracks]);
+
+  useEffect(() => {
+    if (spotifyRetryUntil === null) {
+      return;
+    }
+
+    const updateCountdown = () => {
+      const now = Date.now();
+      setSpotifyCountdownNow(now);
+
+      if (now >= spotifyRetryUntil) {
+        setSpotifyRetryUntil(null);
+      }
+    };
+
+    const interval = window.setInterval(
+      updateCountdown,
+      1000
+    );
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [spotifyRetryUntil]);
 
   /*
    * LOAD CACHE ONCE
@@ -457,6 +519,23 @@ export default function Home() {
             if (!response.ok) {
               if (response.status === 429) {
                 spotifyRateLimited = true;
+
+                const retryAfterSeconds =
+                  parseRetryAfterSeconds(
+                    response.headers.get("Retry-After")
+                  );
+
+                if (
+                  retryAfterSeconds !== null &&
+                  retryAfterSeconds > 0
+                ) {
+                  const now = Date.now();
+                  setSpotifyRetryUntil(
+                    now + retryAfterSeconds * 1000
+                  );
+                  setSpotifyCountdownNow(now);
+                }
+
                 throw new Error("Spotify search rate limited.");
               }
 
@@ -477,6 +556,7 @@ export default function Home() {
               );
             }
 
+            setSpotifyRetryUntil(null);
             setConnected(true);
 
             const spotifyTracks = data.tracks ?? [];
@@ -1266,6 +1346,17 @@ export default function Home() {
         : spotifyResults
       : libraryTracks;
 
+  const spotifyRetrySeconds =
+    spotifyRetryUntil !== null &&
+    spotifyCountdownNow > 0
+      ? Math.max(
+          0,
+          Math.ceil(
+            (spotifyRetryUntil - spotifyCountdownNow) / 1000
+          )
+        )
+      : 0;
+
   const showingLibrarySearchFallback =
     Boolean(search.trim()) &&
     Boolean(spotifySearchError) &&
@@ -1842,13 +1933,22 @@ export default function Home() {
                   )}
               </div>
 
-              {spotifySearchError && (
+              {(spotifySearchError ||
+                spotifyRetrySeconds > 0) && (
                 <div className="mb-6 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-sm text-zinc-300">
-                  <p>
-                    {
-                      spotifySearchError
-                    }
-                  </p>
+                  {spotifySearchError && (
+                    <p>
+                      {spotifySearchError}
+                    </p>
+                  )}
+
+                  {spotifyRetrySeconds > 0 && (
+                    <p className="mt-2 text-zinc-500">
+                      Spotify search should be available again in{" "}
+                      {spotifyRetrySeconds}{" "}
+                      {spotifyRetrySeconds === 1 ? "second" : "seconds"}.
+                    </p>
+                  )}
 
                   {showingLibrarySearchFallback && (
                     <p className="mt-2 text-zinc-500">
