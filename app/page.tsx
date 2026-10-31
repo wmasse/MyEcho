@@ -184,6 +184,16 @@ function parseRetryAfterSeconds(
   );
 }
 
+function formatSpotifyCountdown(
+  totalSeconds: number
+) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+}
+
 export default function Home() {
   const router = useRouter();
 
@@ -816,6 +826,22 @@ export default function Home() {
           response.status ===
           429
         ) {
+          const retryAfterSeconds =
+            parseRetryAfterSeconds(
+              response.headers.get("Retry-After")
+            );
+
+          if (
+            retryAfterSeconds !== null &&
+            retryAfterSeconds > 0
+          ) {
+            const now = Date.now();
+            setSpotifyRetryUntil(
+              now + retryAfterSeconds * 1000
+            );
+            setSpotifyCountdownNow(now);
+          }
+
           throw new Error(
             "Spotify's development quota has been reached. Your existing cached library has not been changed."
           );
@@ -1357,6 +1383,9 @@ export default function Home() {
         )
       : 0;
 
+  const spotifyRetryCountdown =
+    formatSpotifyCountdown(spotifyRetrySeconds);
+
   const showingLibrarySearchFallback =
     Boolean(search.trim()) &&
     Boolean(spotifySearchError) &&
@@ -1537,6 +1566,11 @@ export default function Home() {
             <p className="text-sm text-red-400">
               {error}
             </p>
+            {spotifyRetrySeconds > 0 && (
+              <p className="mt-2 text-sm text-red-300">
+                Spotify should be available again in {spotifyRetryCountdown}.
+              </p>
+            )}
           </section>
         )}
 
@@ -1945,8 +1979,7 @@ export default function Home() {
                   {spotifyRetrySeconds > 0 && (
                     <p className="mt-2 text-zinc-500">
                       Spotify search should be available again in{" "}
-                      {spotifyRetrySeconds}{" "}
-                      {spotifyRetrySeconds === 1 ? "second" : "seconds"}.
+                      {spotifyRetryCountdown}.
                     </p>
                   )}
 

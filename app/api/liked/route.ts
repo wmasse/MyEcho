@@ -51,12 +51,21 @@ export async function GET(request: NextRequest) {
 
     console.error("Spotify API error:", error);
 
+    const headers = new Headers();
+    const retryAfter = response.headers.get("retry-after");
+    if (retryAfter) {
+      headers.set("Retry-After", retryAfter);
+    }
+
     return NextResponse.json(
       {
         error: "spotify_request_failed",
         details: error,
       },
-      { status: response.status }
+      {
+        status: response.status,
+        headers,
+      }
     );
   }
 
