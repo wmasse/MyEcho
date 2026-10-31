@@ -261,13 +261,18 @@ async function findAppleTrack(
 
 async function findRecommendationTrack(
   token: string | null,
-  candidate: Candidate
+  candidate: Candidate,
+  spotifyOnly = false
 ): Promise<Track | null> {
   if (token) {
     const spotifyTrack = await findSpotifyTrack(token, candidate);
     if (spotifyTrack) {
       return spotifyTrack;
     }
+  }
+
+  if (spotifyOnly) {
+    return null;
   }
 
   return findAppleTrack(candidate);
@@ -626,13 +631,18 @@ async function searchArtistTracks(
 
 async function searchRecommendationArtistTracks(
   token: string | null,
-  artist: string
+  artist: string,
+  spotifyOnly = false
 ): Promise<Track[]> {
   if (token) {
     const spotifyTracks = await searchArtistTracks(token, artist);
     if (spotifyTracks.length > 0) {
       return spotifyTracks;
     }
+  }
+
+  if (spotifyOnly) {
+    return [];
   }
 
   const appleTracks = await searchAppleTracks(artist, 25);
@@ -656,7 +666,8 @@ async function resolveDirectDiscoveries(
   libraryIds: Set<string>,
   libraryKeys: Set<string>,
   seedIds: Set<string>,
-  seedKeys: Set<string>
+  seedKeys: Set<string>,
+  spotifyOnly: boolean
 ): Promise<RankedTrack[]> {
   if (maxNeeded <= 0) {
     return [];
@@ -706,7 +717,8 @@ async function resolveDirectDiscoveries(
             track:
               await findRecommendationTrack(
                 token,
-                candidate
+                candidate,
+                spotifyOnly
               ),
           })
         )
@@ -805,6 +817,25 @@ export async function POST(
 
   const includeSeeds =
     body.includeSeeds !== false;
+
+  const spotifyOnly = body.spotifyOnly === true;
+
+  if (spotifyOnly && !spotifyToken) {
+    return NextResponse.json(
+      { error: "Connect Spotify to find Spotify-only tracks." },
+      { status: 401 }
+    );
+  }
+
+  const includedSeedIds = Array.isArray(body.includedSeedIds)
+    ? new Set(
+        body.includedSeedIds.filter(
+          (id: unknown): id is string => typeof id === "string"
+        )
+      )
+    : includeSeeds
+      ? new Set(seeds.map((seed) => seed.id))
+      : new Set<string>();
 
   const requestedArtistLimit = Number(
     body.maxSongsPerArtist ?? 4
@@ -1158,7 +1189,8 @@ export async function POST(
       libraryIds,
       libraryKeys,
       seedIds,
-      seedKeys
+      seedKeys,
+      spotifyOnly
     );
 
   /*
@@ -1355,7 +1387,8 @@ export async function POST(
       const artistTracks =
         await searchRecommendationArtistTracks(
           spotifyToken,
-          artistSignal.name
+          artistSignal.name,
+          spotifyOnly
         );
 
       artistTracks.forEach(
@@ -1427,7 +1460,8 @@ export async function POST(
       const artistTracks =
         await searchRecommendationArtistTracks(
           spotifyToken,
-          artist
+          artist,
+          spotifyOnly
         );
 
       artistTracks.forEach(
@@ -1523,8 +1557,9 @@ export async function POST(
       number
     >();
 
-  if (includeSeeds) {
+  if (includedSeedIds.size > 0) {
     for (const seed of seeds) {
+      if (!includedSeedIds.has(seed.id)) continue;
       const artistKey = normalize(
         primaryArtist(seed.artist)
       );

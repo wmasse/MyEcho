@@ -33,6 +33,7 @@ type Mix = {
   discoveryCount: number;
   seedCount?: number;
   total: number;
+  shortfall: number;
 };
 
 type SavedEcho = {
@@ -42,6 +43,10 @@ type SavedEcho = {
   tracks: EchoResult[];
   seeds: Track[];
 };
+
+function isSpotifyTrack(track: Track) {
+  return /^spotify:track:[A-Za-z0-9]+$/.test(track.uri);
+}
 
 export default function EchoPage() {
   return (
@@ -72,6 +77,7 @@ function EchoContent() {
 
   const [includeDiscovery, setIncludeDiscovery] = useState(true);
   const [includeSeeds, setIncludeSeeds] = useState(true);
+  const [spotifyOnly, setSpotifyOnly] = useState(false);
 
   const [playlistName, setPlaylistName] = useState("My Echo");
 
@@ -92,7 +98,11 @@ function EchoContent() {
 
     const includedSeeds: EchoResult[] = includeSeeds
       ? seeds
-          .filter((track) => !removedTrackIds.has(track.id))
+          .filter(
+            (track) =>
+              !removedTrackIds.has(track.id) &&
+              (!spotifyOnly || isSpotifyTrack(track))
+          )
           .map((track) => ({
             ...track,
             source: "seed",
@@ -110,7 +120,8 @@ function EchoContent() {
       .filter(
         (track) =>
           !seedIds.has(track.id) &&
-          !removedTrackIds.has(track.id)
+          !removedTrackIds.has(track.id) &&
+          (!spotifyOnly || isSpotifyTrack(track))
       )
       .slice(0, recommendationSlots);
 
@@ -121,6 +132,7 @@ function EchoContent() {
     recommendations,
     removedTrackIds,
     seeds,
+    spotifyOnly,
   ]);
 
   useEffect(() => {
@@ -161,26 +173,21 @@ function EchoContent() {
           (track) => track.source === "seed"
         );
 
-        const includedSeedIds = new Set(
-          includedSeedTracks.map((track) => track.id)
-        );
-
         const savedSeedMetadata = Array.isArray(savedEcho.seeds)
-          ? savedEcho.seeds.filter((track) =>
-              includedSeedIds.has(track.id)
-            )
+          ? savedEcho.seeds
           : [];
-
-        const savedSeeds = includedSeedTracks.map(
-          (track) =>
-            savedSeedMetadata.find(
-              (seed) => seed.id === track.id
-            ) ?? track
-        );
+        const savedSeeds =
+          savedSeedMetadata.length > 0
+            ? savedSeedMetadata
+            : includedSeedTracks;
 
         // eslint-disable-next-line react-hooks/set-state-in-effect -- Load the selected saved Echo from browser storage after hydration.
         setSeeds(savedSeeds);
-        setLibrary([]);
+        setLibrary(
+          savedTracks.filter(
+            (track) => track.source === "library"
+          )
+        );
 
         setRecommendations(
           savedTracks.filter((track) => track.source !== "seed")
@@ -202,6 +209,20 @@ function EchoContent() {
           savedTracks.some(
             (track) => track.source === "discovery"
           )
+        );
+
+        const savedRecommendations = savedTracks.filter(
+          (track) => track.source !== "seed"
+        );
+        const savedLibraryCount = savedRecommendations.filter(
+          (track) => track.source === "library"
+        ).length;
+        setLibraryPercent(
+          savedRecommendations.length > 0
+            ? Math.round(
+                ((savedLibraryCount / savedRecommendations.length) * 100) / 10
+              ) * 10
+            : 0
         );
 
         setActiveSavedEchoId(savedEcho.id);
@@ -257,7 +278,8 @@ function EchoContent() {
     percent = libraryPercent,
     discovery = includeDiscovery,
     seedInclusion = includeSeeds,
-    artistLimit = maxSongsPerArtist
+    artistLimit = maxSongsPerArtist,
+    spotifyOnlyMode = spotifyOnly
   ) {
     if (seedTracks.length === 0) return;
 
@@ -268,6 +290,12 @@ function EchoContent() {
     try {
       const hasLibraryTracks = libraryTracks.length > 0;
       const includeNewMusic = hasLibraryTracks ? discovery : true;
+      const includedSeedTracks = seedInclusion
+        ? seedTracks.filter(
+            (track) =>
+              !spotifyOnlyMode || isSpotifyTrack(track)
+          )
+        : [];
 
       const response = await fetch("/api/echo", {
         method: "POST",
@@ -281,7 +309,7 @@ function EchoContent() {
           library: libraryTracks,
 
           playlistSize: seedInclusion
-            ? Math.max(5, size - seedTracks.length)
+            ? Math.max(5, size - includedSeedTracks.length)
             : size,
 
           libraryPercent: includeNewMusic
@@ -292,6 +320,8 @@ function EchoContent() {
 
           includeDiscovery: includeNewMusic,
           includeSeeds: seedInclusion,
+          includedSeedIds: includedSeedTracks.map((track) => track.id),
+          spotifyOnly: spotifyOnlyMode,
           maxSongsPerArtist: artistLimit,
         }),
       });
@@ -317,17 +347,17 @@ function EchoContent() {
         )
         .slice(
           0,
-          Math.max(
-            0,
-            size -
-              (seedInclusion ? seedTracks.length : 0)
-          )
+          Math.max(0, size - includedSeedTracks.length)
         );
 
       setRecommendations(recommendationResults);
       setRemovedTrackIds(new Set());
       setRemovedTracks([]);
-      setMix(data.mix ?? null);
+      setMix(
+        data.mix
+          ? { ...data.mix, shortfall: data.shortfall ?? 0 }
+          : null
+      );
     } catch (err) {
       console.error(err);
 
@@ -509,9 +539,15 @@ function EchoContent() {
         track.source === "discovery"
     ).length;
 
-  const hasOnlySpotifyTracks = results.every(
-    (track) => /^spotify:track:[A-Za-z0-9]+$/.test(track.uri)
-  );
+  const likedAndNewCount = likedCount + newCount;
+  const actualLikedPercent = likedAndNewCount > 0
+    ? Math.round((likedCount / likedAndNewCount) * 100)
+    : 0;
+  const actualNewPercent = likedAndNewCount > 0
+    ? 100 - actualLikedPercent
+    : 0;
+
+  const hasOnlySpotifyTracks = results.every(isSpotifyTrack);
 
   return (
     <main className="min-h-screen bg-[#070707] text-white">
@@ -605,7 +641,9 @@ function EchoContent() {
                   </p>
 
                   <p className="mt-2 text-sm text-zinc-600">
-                    Searching Spotify and Apple Music around the songs you chose.
+                    {spotifyOnly
+                      ? "Searching Spotify around the songs you chose."
+                      : "Searching Spotify and Apple Music around the songs you chose."}
                   </p>
                 </div>
               </div>
@@ -644,6 +682,12 @@ function EchoContent() {
                     <span className="text-[#1DB954]">
                       {newCount} new
                     </span>
+                  </p>
+
+                  <p className="mt-2 text-xs text-zinc-600">
+                    {likedAndNewCount > 0
+                      ? `Current mix: ${likedCount} liked (${actualLikedPercent}%) · ${newCount} new (${actualNewPercent}%). Seed songs are counted separately.`
+                      : "No recommended songs yet. Seed songs are counted separately."}
                   </p>
                 </div>
 
@@ -822,13 +866,10 @@ function EchoContent() {
                   max="50"
                   step="5"
                   value={playlistSize}
-                  onChange={(event) =>
-                    setPlaylistSize(
-                      Number(
-                        event.target.value
-                      )
-                    )
-                  }
+                  onChange={(event) => {
+                    setPlaylistSize(Number(event.target.value));
+                    setMix(null);
+                  }}
                   className="mt-4 w-full accent-[#1DB954]"
                 />
 
@@ -836,11 +877,10 @@ function EchoContent() {
                   <span>Max songs per artist</span>
                   <select
                     value={maxSongsPerArtist}
-                    onChange={(event) =>
-                      setMaxSongsPerArtist(
-                        Number(event.target.value)
-                      )
-                    }
+                    onChange={(event) => {
+                      setMaxSongsPerArtist(Number(event.target.value));
+                      setMix(null);
+                    }}
                     className="rounded-lg border border-white/[0.1] bg-[#181818] px-3 py-2 text-sm text-white outline-none focus:border-[#1DB954]/60"
                   >
                     {[1, 2, 3, 4, 5, 6, 8, 10].map((limit) => (
@@ -858,12 +898,10 @@ function EchoContent() {
                 <button
                   type="button"
                   disabled={library.length === 0}
-                  onClick={() =>
-                    setIncludeDiscovery(
-                      (current) =>
-                        !current
-                    )
-                  }
+                  onClick={() => {
+                    setIncludeDiscovery((current) => !current);
+                    setMix(null);
+                  }}
                   className="flex w-full items-center justify-between text-left disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <div className="pr-6">
@@ -892,6 +930,66 @@ function EchoContent() {
                     />
                   </div>
                 </button>
+              </div>
+
+              {/* SPOTIFY ONLY */}
+              <div className="mt-8 border-t border-white/[0.07] pt-8">
+                <button
+                  type="button"
+                  aria-pressed={spotifyOnly}
+                  disabled={finding}
+                  onClick={() => {
+                    const nextSpotifyOnly = !spotifyOnly;
+                    setSpotifyOnly(nextSpotifyOnly);
+                    void generateEcho(
+                      seeds,
+                      library,
+                      playlistSize,
+                      libraryPercent,
+                      includeDiscovery,
+                      includeSeeds,
+                      maxSongsPerArtist,
+                      nextSpotifyOnly
+                    );
+                  }}
+                  className="flex w-full items-center justify-between text-left disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <div className="pr-6">
+                    <p className="font-semibold">Spotify-only playlist</p>
+                    <p className="mt-1 text-sm leading-5 text-zinc-600">
+                      Skip Apple Music tracks so every song can go into Spotify.
+                    </p>
+                  </div>
+
+                  <div
+                    className={`relative h-7 w-12 shrink-0 rounded-full transition ${
+                      spotifyOnly ? "bg-[#1DB954]" : "bg-zinc-800"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${
+                        spotifyOnly ? "left-6" : "left-1"
+                      }`}
+                    />
+                  </div>
+                </button>
+
+                {spotifyOnly && seeds.some((track) => !isSpotifyTrack(track)) && (
+                  <p className="mt-3 text-xs leading-5 text-zinc-500">
+                    Apple Music seed songs still guide recommendations, but won’t be added to the Spotify playlist.
+                  </p>
+                )}
+                {spotifyOnly && error === "Connect Spotify to find Spotify-only tracks." && (
+                  <p className="mt-3 text-xs leading-5 text-zinc-500">
+                    <a
+                      href="/api/spotify/login"
+                      className="text-[#1DB954] hover:underline"
+                    >
+                      Connect Spotify
+                    </a>{" "}
+                    to use Spotify-only mode.
+                  </p>
+                )}
               </div>
 
               {/* MIX */}
@@ -929,24 +1027,26 @@ function EchoContent() {
                   min="0"
                   max="100"
                   step="10"
-                  value={
-                    library.length > 0
-                      ? libraryPercent
-                      : 0
-                  }
+                  value={libraryPercent}
                   disabled={
                     !includeDiscovery ||
                     library.length === 0
                   }
-                  onChange={(event) =>
-                    setLibraryPercent(
-                      Number(
-                        event.target.value
-                      )
-                    )
-                  }
+                  onChange={(event) => {
+                    setLibraryPercent(Number(event.target.value));
+                    setMix(null);
+                  }}
                   className="mt-4 w-full accent-[#1DB954]"
                 />
+
+                <p className="mt-3 text-xs leading-5 text-zinc-600">
+                  The percentages apply to recommended songs; seed songs are added separately. Regenerate Echo to apply a changed mix.
+                </p>
+                {mix && mix.shortfall > 0 && (
+                  <p className="mt-2 text-xs leading-5 text-amber-400">
+                    Found {mix.total} of {mix.requestedLibraryCount + mix.requestedDiscoveryCount} requested recommendation songs. Try another mix or regenerate.
+                  </p>
+                )}
               </div>
 
               {/* INCLUDE SEEDS */}
