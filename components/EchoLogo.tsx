@@ -9,7 +9,7 @@ export default function EchoLogo() {
     >
       <svg
         aria-hidden="true"
-        className="h-12 w-[168px] sm:h-14 sm:w-[196px]"
+        className="h-12 w-[168px] sm:h-16 sm:w-56"
         viewBox="0 0 224 64"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
