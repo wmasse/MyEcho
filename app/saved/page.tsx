@@ -7,6 +7,7 @@ import {
   SPOTIFY_PLAYLISTS_ENABLED,
   SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
 } from "@/lib/spotify-playlists";
+import { dedupeTracksByIdentity } from "@/lib/track-identity";
 
 type Track = {
   id: string;
@@ -124,7 +125,9 @@ export default function SavedPage() {
         body: JSON.stringify({
           name: playlist.name,
           description: "Created with Echo.",
-          uris: playlist.tracks.map((track) => track.uri),
+          uris: dedupeTracksByIdentity(playlist.tracks).map(
+            (track) => track.uri
+          ),
         }),
       });
 

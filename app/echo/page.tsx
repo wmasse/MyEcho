@@ -9,6 +9,10 @@ import {
   SPOTIFY_PLAYLISTS_ENABLED,
   SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
 } from "@/lib/spotify-playlists";
+import {
+  dedupeTracksByIdentity,
+  trackIdentityKey,
+} from "@/lib/track-identity";
 
 type Track = {
   id: string;
@@ -96,35 +100,54 @@ function EchoContent() {
 
   const results = useMemo(() => {
     const seedIds = new Set(seeds.map((track) => track.id));
+    const seenSongKeys = new Set<string>();
 
-    const includedSeeds: EchoResult[] = includeSeeds
-      ? seeds
-          .filter(
-            (track) =>
-              !removedTrackIds.has(track.id) &&
-              (!spotifyOnly || isSpotifyTrack(track))
-          )
-          .map((track) => ({
-            ...track,
-            source: "seed",
-            echoScore: 100,
-            matchedSeeds: 1,
-          }))
-      : [];
+    const includedSeeds: EchoResult[] = [];
+
+    if (includeSeeds) {
+      for (const track of seeds) {
+        if (
+          removedTrackIds.has(track.id) ||
+          (spotifyOnly && !isSpotifyTrack(track))
+        ) {
+          continue;
+        }
+
+        const key = trackIdentityKey(track.name, track.artist);
+        if (seenSongKeys.has(key)) continue;
+        seenSongKeys.add(key);
+
+        includedSeeds.push({
+          ...track,
+          source: "seed",
+          echoScore: 100,
+          matchedSeeds: 1,
+        });
+      }
+    }
 
     const recommendationSlots = Math.max(
       0,
       playlistSize - includedSeeds.length
     );
 
-    const selectedRecommendations = recommendations
-      .filter(
-        (track) =>
-          !seedIds.has(track.id) &&
-          !removedTrackIds.has(track.id) &&
-          (!spotifyOnly || isSpotifyTrack(track))
-      )
-      .slice(0, recommendationSlots);
+    const selectedRecommendations: EchoResult[] = [];
+
+    for (const track of recommendations) {
+      if (selectedRecommendations.length >= recommendationSlots) break;
+      if (
+        seedIds.has(track.id) ||
+        removedTrackIds.has(track.id) ||
+        (spotifyOnly && !isSpotifyTrack(track))
+      ) {
+        continue;
+      }
+
+      const key = trackIdentityKey(track.name, track.artist);
+      if (seenSongKeys.has(key)) continue;
+      seenSongKeys.add(key);
+      selectedRecommendations.push(track);
+    }
 
     return [...includedSeeds, ...selectedRecommendations];
   }, [
@@ -292,9 +315,11 @@ function EchoContent() {
       const hasLibraryTracks = libraryTracks.length > 0;
       const includeNewMusic = hasLibraryTracks ? discovery : true;
       const includedSeedTracks = seedInclusion
-        ? seedTracks.filter(
-            (track) =>
-              !spotifyOnlyMode || isSpotifyTrack(track)
+        ? dedupeTracksByIdentity(
+            seedTracks.filter(
+              (track) =>
+                !spotifyOnlyMode || isSpotifyTrack(track)
+            )
           )
         : [];
 

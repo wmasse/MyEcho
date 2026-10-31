@@ -35,7 +35,9 @@ export async function POST(request: NextRequest) {
     body.description?.trim() ||
     "Made with Echo.";
 
-  const uris: string[] = body.uris ?? [];
+  const uris: string[] = Array.isArray(body.uris)
+    ? Array.from(new Set(body.uris))
+    : [];
 
   if (uris.length === 0) {
     return NextResponse.json(

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSpotifyAccessToken } from "@/lib/spotify";
+import { trackIdentityKey } from "@/lib/track-identity";
 
 type Track = {
   id: string;
@@ -108,9 +109,7 @@ function trackKey(
   name: string,
   artist: string
 ) {
-  return `${normalize(
-    primaryArtist(artist)
-  )}::${normalize(name)}`;
+  return trackIdentityKey(name, artist);
 }
 
 function normalizeLastFmMatch(
@@ -741,12 +740,12 @@ async function resolveDirectDiscoveries(
         seedKeys.has(key) ||
         libraryIds.has(track.id) ||
         libraryKeys.has(key) ||
-        seen.has(track.id)
+        seen.has(key)
       ) {
         continue;
       }
 
-      seen.add(track.id);
+      seen.add(key);
 
       resolved.push({
         track,
@@ -1076,17 +1075,23 @@ export async function POST(
   function addLibraryCandidate(
     candidate: RankedTrack
   ) {
+    const key = trackKey(
+      candidate.track.name,
+      candidate.track.artist
+    );
+
     if (
       seedIds.has(
         candidate.track.id
-      )
+      ) ||
+      seedKeys.has(key)
     ) {
       return;
     }
 
     const current =
       libraryCandidateMap.get(
-        candidate.track.id
+        key
       );
 
     if (
@@ -1095,7 +1100,7 @@ export async function POST(
         current.score
     ) {
       libraryCandidateMap.set(
-        candidate.track.id,
+        key,
         candidate
       );
     }
@@ -1328,7 +1333,7 @@ export async function POST(
     const item of selectedDiscovery
   ) {
     discoveryMap.set(
-      item.track.id,
+      trackKey(item.track.name, item.track.artist),
       item
     );
   }
@@ -1347,9 +1352,7 @@ export async function POST(
       seedKeys.has(key) ||
       libraryIds.has(track.id) ||
       libraryKeys.has(key) ||
-      discoveryMap.has(
-        track.id
-      )
+      discoveryMap.has(key)
     );
   }
 
@@ -1402,7 +1405,7 @@ export async function POST(
           }
 
           discoveryMap.set(
-            track.id,
+            trackKey(track.name, track.artist),
             {
               track,
 
@@ -1475,7 +1478,7 @@ export async function POST(
           }
 
           discoveryMap.set(
-            track.id,
+            trackKey(track.name, track.artist),
             {
               track,
 
@@ -1550,6 +1553,7 @@ export async function POST(
 
   const selectedLibrary:
     RankedTrack[] = [];
+  const selectedSongKeys = new Set<string>();
 
   const artistCounts =
     new Map<
@@ -1591,6 +1595,14 @@ export async function POST(
           item.track.artist
         )
       );
+    const songKey = trackKey(
+      item.track.name,
+      item.track.artist
+    );
+
+    if (selectedSongKeys.has(songKey)) {
+      continue;
+    }
 
     const count =
       artistCounts.get(
@@ -1604,6 +1616,7 @@ export async function POST(
     selectedLibrary.push(
       item
     );
+    selectedSongKeys.add(songKey);
 
     artistCounts.set(
       artistKey,
@@ -1625,6 +1638,15 @@ export async function POST(
       break;
     }
 
+    const songKey = trackKey(
+      item.track.name,
+      item.track.artist
+    );
+
+    if (selectedSongKeys.has(songKey)) {
+      continue;
+    }
+
     const artistKey = normalize(
       primaryArtist(item.track.artist)
     );
@@ -1635,6 +1657,7 @@ export async function POST(
     }
 
     selectedDiscovery.push(item);
+    selectedSongKeys.add(songKey);
     artistCounts.set(artistKey, count + 1);
   }
 
