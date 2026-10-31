@@ -18,10 +18,9 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Spotify playlist creation
 
-Creating playlists in Spotify is disabled by default. Echoes can still be saved
-in the app or shared as links. When Spotify development access is available,
-set `NEXT_PUBLIC_SPOTIFY_PLAYLISTS_ENABLED=true` and restart the dev server or
-rebuild the deployment to enable Spotify playlist creation.
+Creating playlists in Spotify is enabled by default. To pause it, set
+`NEXT_PUBLIC_SPOTIFY_PLAYLISTS_ENABLED=false` and restart the dev server or
+rebuild the deployment. Echoes can still be saved in the app or shared as links.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
