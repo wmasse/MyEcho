@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { SPOTIFY_PLAYLISTS_ENABLED } from "@/lib/spotify-playlists";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const redirectUri = process.env.SPOTIFY_REDIRECT_URI;
 
@@ -16,6 +16,9 @@ export async function GET() {
 
   const scopes = [
     "user-library-read",
+    "user-read-recently-played",
+    "user-top-read",
+    "user-read-currently-playing",
     ...(SPOTIFY_PLAYLISTS_ENABLED
       ? ["playlist-modify-private"]
       : []),
@@ -43,6 +46,20 @@ export async function GET() {
     maxAge: 60 * 10,
     path: "/",
   });
+
+  response.cookies.set(
+    "spotify_oauth_next",
+    request.nextUrl.searchParams.get("next") === "/stats"
+      ? "/stats"
+      : "/",
+    {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 10,
+      path: "/",
+    }
+  );
 
   return response;
 }

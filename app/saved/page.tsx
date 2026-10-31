@@ -173,6 +173,13 @@ export default function SavedPage() {
               Create
             </button>
 
+            <button
+              onClick={() => router.push("/stats")}
+              className="text-zinc-500 transition hover:text-white"
+            >
+              Stats
+            </button>
+
             <span className="font-semibold text-white">
               Saved
             </span>

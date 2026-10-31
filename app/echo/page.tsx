@@ -576,6 +576,13 @@ function EchoContent() {
             >
               Saved
             </button>
+
+            <button
+              onClick={() => router.push("/stats")}
+              className="text-zinc-500 transition hover:text-white"
+            >
+              Stats
+            </button>
           </div>
         </nav>
 

@@ -1492,6 +1492,14 @@ export default function Home() {
 
             <button
               type="button"
+              onClick={() => router.push("/stats")}
+              className="text-sm text-zinc-500 transition hover:text-white"
+            >
+              Stats
+            </button>
+
+            <button
+              type="button"
               onClick={() =>
                 router.push(
                   "/saved"

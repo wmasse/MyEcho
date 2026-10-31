@@ -10,6 +10,11 @@ export async function GET(request: NextRequest) {
   const savedState =
     request.cookies.get("spotify_oauth_state")?.value;
 
+  const nextPath =
+    request.cookies.get("spotify_oauth_next")?.value === "/stats"
+      ? "/stats"
+      : "/";
+
   if (
     !code ||
     !returnedState ||
@@ -116,7 +121,7 @@ export async function GET(request: NextRequest) {
   const response =
     NextResponse.redirect(
       new URL(
-        "/?spotify=connected",
+        `${nextPath}?spotify=connected`,
         request.url
       )
     );
@@ -199,6 +204,16 @@ export async function GET(request: NextRequest) {
 
     path: "/",
 
+    maxAge: 0,
+  });
+
+  response.cookies.set({
+    name: "spotify_oauth_next",
+    value: "",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
     maxAge: 0,
   });
 
