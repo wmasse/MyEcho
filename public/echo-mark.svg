@@ -1,0 +1,32 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="106"
+  height="64"
+  viewBox="0 0 106 64"
+  fill="none"
+  role="img"
+  aria-labelledby="title"
+>
+  <title id="title">Echo mark</title>
+  <defs>
+    <radialGradient id="echo-orb-front" cx="30%" cy="24%" r="78%">
+      <stop offset="0" stop-color="#A7FFC3" stop-opacity="0.9" />
+      <stop offset="0.42" stop-color="#29D566" stop-opacity="0.72" />
+      <stop offset="1" stop-color="#0E8D43" stop-opacity="0.55" />
+    </radialGradient>
+    <radialGradient id="echo-orb-middle" cx="30%" cy="24%" r="78%">
+      <stop offset="0" stop-color="#81EFA4" stop-opacity="0.7" />
+      <stop offset="0.48" stop-color="#1DB954" stop-opacity="0.56" />
+      <stop offset="1" stop-color="#0B7138" stop-opacity="0.4" />
+    </radialGradient>
+    <radialGradient id="echo-orb-back" cx="30%" cy="24%" r="78%">
+      <stop offset="0" stop-color="#64D98C" stop-opacity="0.55" />
+      <stop offset="0.5" stop-color="#159A49" stop-opacity="0.42" />
+      <stop offset="1" stop-color="#075A2D" stop-opacity="0.3" />
+    </radialGradient>
+  </defs>
+
+  <circle cx="77" cy="32" r="29" fill="url(#echo-orb-back)" />
+  <circle cx="53" cy="32" r="29" fill="url(#echo-orb-middle)" />
+  <circle cx="29" cy="32" r="29" fill="url(#echo-orb-front)" />
+</svg>
