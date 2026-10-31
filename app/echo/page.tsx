@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import EchoLogo from "@/components/EchoLogo";
+import EchoScoreDetails from "@/components/EchoScoreDetails";
 import ShareEchoButton from "@/components/ShareEchoButton";
 import {
   SPOTIFY_PLAYLISTS_ENABLED,
@@ -771,11 +772,12 @@ function EchoContent() {
                         </span>
 
                         {/* SCORE */}
-                        <div className="hidden w-14 text-right md:block">
-                          <p className="text-sm font-semibold text-[#1DB954]">
-                            {track.echoScore}%
-                          </p>
-                        </div>
+                        <EchoScoreDetails
+                          trackName={track.name}
+                          score={track.echoScore}
+                          matchedSeeds={track.matchedSeeds}
+                          source={track.source}
+                        />
 
                         {/* OPEN */}
                         <a

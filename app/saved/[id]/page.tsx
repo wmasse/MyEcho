@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import EchoLogo from "@/components/EchoLogo";
+import EchoScoreDetails from "@/components/EchoScoreDetails";
 import {
   SPOTIFY_PLAYLISTS_ENABLED,
   SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
@@ -17,7 +18,7 @@ type Track = {
   image: string | null;
   externalUrl?: string;
 
-  source?: "library" | "discovery";
+  source?: "seed" | "library" | "discovery";
   echoScore?: number;
   matchedSeeds?: number;
 };
@@ -425,22 +426,29 @@ function SavedEchoContent() {
                 {track.source && (
                   <span
                     className={`hidden rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] sm:block ${
-                      track.source === "library"
-                        ? "bg-white/[0.06] text-zinc-500"
-                        : "bg-[#1DB954]/10 text-[#1DB954]"
+                      track.source === "seed"
+                        ? "bg-white text-black"
+                        : track.source === "library"
+                          ? "bg-white/[0.06] text-zinc-500"
+                          : "bg-[#1DB954]/10 text-[#1DB954]"
                     }`}
                   >
-                    {track.source === "library"
-                      ? "Liked"
-                      : "New"}
+                    {track.source === "seed"
+                      ? "Seed"
+                      : track.source === "library"
+                        ? "Liked"
+                        : "New"}
                   </span>
                 )}
 
                 {/* SCORE */}
                 {track.echoScore !== undefined && (
-                  <span className="hidden w-12 text-right text-sm font-semibold text-[#1DB954] md:block">
-                    {track.echoScore}%
-                  </span>
+                  <EchoScoreDetails
+                    trackName={track.name}
+                    score={track.echoScore}
+                    matchedSeeds={track.matchedSeeds ?? 0}
+                    source={track.source ?? "discovery"}
+                  />
                 )}
 
                 {/* OPEN TRACK */}
