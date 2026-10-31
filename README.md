@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Spotify features use the `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, and `SPOTIFY_REDIRECT_URI` environment variables. Set `SPOTIFY_REDIRECT_URI` to `https://myechosounds.com/api/spotify/callback` in local and deployed environments, and register that URL in the Spotify app settings. Genre lookup and some recommendations use `LASTFM_API_KEY`. Set `NEXT_PUBLIC_SPOTIFY_PLAYLISTS_ENABLED=false` to pause creating playlists on Spotify.
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000). Spotify features use the `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, and `SPOTIFY_REDIRECT_URI` environment variables. For local development, set `SPOTIFY_REDIRECT_URI` to `http://127.0.0.1:3000/api/spotify/callback`; in deployed environments, set it to `https://myechosounds.com/api/spotify/callback`. Add both exact URLs to the Redirect URIs list in the Spotify app settings. Genre lookup and some recommendations use `LASTFM_API_KEY`. Set `NEXT_PUBLIC_SPOTIFY_PLAYLISTS_ENABLED=false` to pause creating playlists on Spotify.
 
 ## Short shared links
 
