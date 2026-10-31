@@ -370,7 +370,7 @@ export default function StatsDashboard() {
                 )}
               </article>
 
-              <article className="rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8">
+              <article className="self-start rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8">
                 <div className="flex items-start justify-between gap-5">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1DB954]">Right now</p>
