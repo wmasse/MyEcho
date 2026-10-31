@@ -105,8 +105,10 @@ const POPULAR_ALBUMS: PopularAlbum[] = [
   },
 ];
 
-function shuffledPopularAlbums() {
-  const albums = [...POPULAR_ALBUMS];
+function shuffledPopularAlbums(
+  source: PopularAlbum[] = POPULAR_ALBUMS
+) {
+  const albums = [...source];
 
   for (
     let index = albums.length - 1;
@@ -443,6 +445,37 @@ export default function Home() {
     setHeroAlbums(
       shuffledPopularAlbums()
     );
+
+    const controller = new AbortController();
+
+    async function loadPopularAlbums() {
+      try {
+        const response = await fetch(
+          "/api/popular-albums",
+          { signal: controller.signal }
+        );
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as {
+          albums?: PopularAlbum[];
+        };
+
+        if (data.albums?.length) {
+          setHeroAlbums(
+            shuffledPopularAlbums(data.albums)
+          );
+        }
+      } catch {
+        // Keep the curated albums if the chart is unavailable.
+      }
+    }
+
+    void loadPopularAlbums();
+
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {

@@ -17,6 +17,12 @@ const nextConfig: NextConfig = {
         pathname: "/image/**",
         search: "",
       },
+      {
+        protocol: "https",
+        hostname: "**.mzstatic.com",
+        pathname: "/image/**",
+        search: "",
+      },
     ],
   },
 
