@@ -1451,7 +1451,7 @@ export default function Home() {
 
       <div className="relative mx-auto max-w-7xl px-6 md:px-10 lg:px-14">
         {/* NAV */}
-        <nav className="flex h-24 items-center justify-between">
+        <nav className="flex h-24 items-center justify-between lg:h-28">
           <EchoLogo size="home" />
 
           <div className="flex items-center gap-7">
