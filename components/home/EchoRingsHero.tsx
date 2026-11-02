@@ -9,7 +9,8 @@ import type { PopularAlbum } from "@/lib/home";
  * album covers rippling outward on rings around it, smaller and fainter
  * the further out they sit. Farther rings are slightly blurred, like
  * they're out of focus. When the list rotates, each cover glides to the
- * next slot.
+ * next slot. Typing sends a soft wave out from the search box: each ring
+ * glows in turn and its covers lift a little.
  *
  * Positions are percentages of a square stage, so it scales from phone
  * to desktop without media queries.
@@ -30,6 +31,14 @@ const SLOTS: Slot[] = [
   { radius: RINGS[2], angle: 18, size: 7.5, opacity: 0.6, blur: 2 },
   { radius: RINGS[2], angle: 162, size: 7.5, opacity: 0.6, blur: 2 },
 ];
+
+// The typing wave: kept slow and faint, and at most one every so often.
+const WAVE_MS = 1800;
+const WAVE_STEP_MS = 220; // delay between rings
+const WAVE_GAP_MS = 700; // fast typing doesn't stack waves
+
+const ringColor = (index: number, alpha = 0.35 - index * 0.1) =>
+  `rgb(29 185 84 / ${alpha})`;
 
 function slotStyle(slot: Slot) {
   const radians = (slot.angle * Math.PI) / 180;
@@ -61,6 +70,39 @@ export default function EchoRingsHero({
 }) {
   const [query, setQuery] = useState("");
   const formRef = useRef<HTMLFormElement | null>(null);
+  const ringRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const coverRefs = useRef<(HTMLLIElement | null)[]>([]);
+  const lastWaveRef = useRef(0);
+
+  function sendWave() {
+    const now = performance.now();
+    if (
+      now - lastWaveRef.current < WAVE_GAP_MS ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+    lastWaveRef.current = now;
+
+    ringRefs.current.forEach((ring, index) => {
+      ring?.animate(
+        [
+          { borderColor: ringColor(index) },
+          { borderColor: ringColor(index, 0.6 - index * 0.12), offset: 0.3 },
+          { borderColor: ringColor(index) },
+        ],
+        { duration: WAVE_MS, delay: index * WAVE_STEP_MS, easing: "ease-out" }
+      );
+    });
+
+    coverRefs.current.forEach((cover, index) => {
+      const ring = RINGS.indexOf(SLOTS[index]?.radius);
+      cover?.animate(
+        [{ scale: "1" }, { scale: "1.05", offset: 0.3 }, { scale: "1" }],
+        { duration: WAVE_MS, delay: ring * WAVE_STEP_MS + 80, easing: "ease-out" }
+      );
+    });
+  }
   const onInViewRef = useRef(onSearchInViewChange);
 
   useEffect(() => {
@@ -98,26 +140,31 @@ export default function EchoRingsHero({
         }}
       >
         <div className="relative aspect-square w-full">
-          {/* Rings and a slow ripple from the center */}
+          {/* Rings */}
           <div aria-hidden="true" className="pointer-events-none absolute inset-0">
             {RINGS.map((radius, index) => (
               <div
                 key={radius}
+                ref={(element) => {
+                  ringRefs.current[index] = element;
+                }}
                 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border"
                 style={{
                   width: `${radius * 2}%`,
                   height: `${radius * 2}%`,
-                  borderColor: `rgb(29 185 84 / ${0.35 - index * 0.1})`,
+                  borderColor: ringColor(index),
                 }}
               />
             ))}
-            <div className="echo-ripple absolute left-1/2 top-1/2 h-[96%] w-[96%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#1DB954]/50" />
           </div>
 
           <ul aria-label="Popular albums to start a mix from">
             {shown.map((album, index) => (
               <li
                 key={album.id}
+                ref={(element) => {
+                  coverRefs.current[index] = element;
+                }}
                 className="absolute aspect-square -translate-x-1/2 -translate-y-1/2 transition-[left,top,width,opacity,filter] duration-[900ms] ease-[cubic-bezier(0.2,0.75,0.25,1)] motion-reduce:transition-none"
                 style={slotStyle(SLOTS[index])}
               >
@@ -165,7 +212,10 @@ export default function EchoRingsHero({
                 enterKeyHint="search"
                 autoComplete="off"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  if (event.target.value.trim()) sendWave();
+                }}
                 placeholder="Search a song"
                 className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-zinc-500"
               />
