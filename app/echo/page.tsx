@@ -10,6 +10,11 @@ import {
   SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
 } from "@/lib/spotify-playlists";
 import {
+  saveMixToSpotify,
+  sharedPlaylistNotice,
+  skippedSongsNotice,
+} from "@/lib/save-to-spotify";
+import {
   dedupeTracksByIdentity,
   trackIdentityKey,
 } from "@/lib/track-identity";
@@ -89,6 +94,7 @@ function EchoContent() {
 
   const [finding, setFinding] = useState(true);
   const [savingSpotify, setSavingSpotify] = useState(false);
+  const [sharedSpotifyNotice, setSharedSpotifyNotice] = useState("");
   const [savingEcho, setSavingEcho] = useState(false);
   const [activeSavedEchoId, setActiveSavedEchoId] = useState<string | null>(
     null
@@ -498,34 +504,27 @@ function EchoContent() {
     setSavingSpotify(true);
     setError("");
     setSavedSpotifyUrl(null);
+    setSharedSpotifyNotice("");
 
     try {
-      const response = await fetch(
-        "/api/spotify/playlist",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: playlistName.trim() || "My Echo",
-            description: "Created with Echo.",
-            uris: results.map((track) => track.uri),
-          }),
-        }
+      const saved = await saveMixToSpotify({
+        name: playlistName.trim() || "My Echo",
+        description: "Created with Echo.",
+        tracks: results,
+      });
+
+      setSavedSpotifyUrl(saved.url);
+
+      setSharedSpotifyNotice(
+        [
+          saved.kind === "shared"
+            ? sharedPlaylistNotice(saved.removeAfterMinutes)
+            : "",
+          skippedSongsNotice(saved.skipped),
+        ]
+          .filter(Boolean)
+          .join(" ")
       );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-            data.error ||
-            "Could not save playlist to Spotify."
-        );
-      }
-
-      setSavedSpotifyUrl(data.playlist.url);
     } catch (err) {
       console.error(err);
       setError(
@@ -1194,25 +1193,20 @@ function EchoContent() {
                 disabled={
                   savingSpotify ||
                   !SPOTIFY_PLAYLISTS_ENABLED ||
-                  !hasOnlySpotifyTracks ||
                   finding ||
                   results.length === 0
                 }
                 title={
                   !SPOTIFY_PLAYLISTS_ENABLED
                     ? SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE
-                    : hasOnlySpotifyTracks
-                      ? ""
-                      : "This Echo includes Apple Music tracks, which Spotify cannot add to a playlist."
+                    : ""
                 }
                 className="mt-3 min-h-14 w-full rounded-full bg-[#1DB954] font-bold text-black transition hover:scale-[1.01] hover:bg-[#22cf63] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {SPOTIFY_PLAYLISTS_ENABLED
-                  ? !hasOnlySpotifyTracks
-                    ? "Spotify needs Spotify tracks"
-                    : savingSpotify
-                      ? "Saving..."
-                      : "Save to Spotify"
+                  ? savingSpotify
+                    ? "Saving..."
+                    : "Save to Spotify"
                   : "Spotify playlists paused"}
               </button>
 
@@ -1224,7 +1218,7 @@ function EchoContent() {
 
               {SPOTIFY_PLAYLISTS_ENABLED && !hasOnlySpotifyTracks && (
                 <p className="mt-2 text-center text-xs leading-5 text-zinc-500">
-                  This Echo includes Apple Music tracks. Save it here or share the link.
+                  This Echo includes Apple Music songs. Echo finds their Spotify versions when you save; any Spotify doesn&apos;t have are left out.
                 </p>
               )}
 
@@ -1237,6 +1231,12 @@ function EchoContent() {
                 >
                   Open in Spotify ↗
                 </a>
+              )}
+
+              {sharedSpotifyNotice && (
+                <p className="mt-2 text-center text-xs leading-5 text-zinc-400">
+                  {sharedSpotifyNotice}
+                </p>
               )}
             </div>
           </aside>

@@ -7,6 +7,11 @@ import {
   SPOTIFY_PLAYLISTS_ENABLED,
   SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
 } from "@/lib/spotify-playlists";
+import {
+  saveMixToSpotify,
+  sharedPlaylistNotice,
+  skippedSongsNotice,
+} from "@/lib/save-to-spotify";
 import { dedupeTracksByIdentity } from "@/lib/track-identity";
 import CoverArt from "@/components/CoverArt";
 
@@ -38,6 +43,7 @@ export default function SavedPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [sharedSpotifyNotice, setSharedSpotifyNotice] = useState("");
   const [savingSpotifyId, setSavingSpotifyId] =
     useState<string | null>(null);
 
@@ -117,31 +123,28 @@ export default function SavedPage() {
 
     setSavingSpotifyId(playlist.id);
 
+    setSharedSpotifyNotice("");
+
     try {
-      const response = await fetch("/api/spotify/playlist", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: playlist.name,
-          description: "Created with Echo.",
-          uris: dedupeTracksByIdentity(playlist.tracks).map(
-            (track) => track.uri
-          ),
-        }),
+      const saved = await saveMixToSpotify({
+        name: playlist.name,
+        description: "Created with Echo.",
+        tracks: dedupeTracksByIdentity(playlist.tracks),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message || data.error || "Could not save to Spotify."
-        );
-      }
+      setSharedSpotifyNotice(
+        [
+          saved.kind === "shared"
+            ? sharedPlaylistNotice(saved.removeAfterMinutes)
+            : "",
+          skippedSongsNotice(saved.skipped),
+        ]
+          .filter(Boolean)
+          .join(" ")
+      );
 
       window.open(
-        data.playlist.url,
+        saved.url,
         "_blank",
         "noopener,noreferrer"
       );
@@ -167,6 +170,15 @@ export default function SavedPage() {
       <div className="relative mx-auto max-w-7xl px-6 pb-20 md:px-10 lg:px-14">
         {/* NAV */}
         <SiteNav current="saved" />
+
+        {sharedSpotifyNotice && (
+          <p
+            role="status"
+            className="mt-4 rounded-2xl border border-[#1DB954]/20 bg-[#1DB954]/[0.06] px-5 py-4 text-sm text-zinc-300"
+          >
+            {sharedSpotifyNotice}
+          </p>
+        )}
 
         {/* HEADER */}
         <section className="pb-14 pt-16">

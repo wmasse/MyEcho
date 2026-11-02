@@ -17,6 +17,35 @@ Open [http://127.0.0.1:3000](http://127.0.0.1:3000). Spotify features use the `S
 
 Sharing saves an Echo to a private Vercel Blob store and creates a short link at `/shared/{id}`. In the Vercel project, create a private Blob store and connect it to the environments where the app runs. For local development, add the store's `BLOB_READ_WRITE_TOKEN` to `.env.local`. Sharing is unavailable until the Blob store is connected. Existing `/shared#echo=...` links remain readable.
 
+## Backup playlist saving
+
+Spotify only lets accounts on the app's Development Mode user list save playlists to their own library. For everyone else, Echo can save the mix as a public playlist on the site owner's account instead. The visitor opens the link and taps **Save**. About an hour later, Echo removes the playlist from the owner's library; anyone who saved it keeps it. Visitors who can save to their own account always do, so this is only a backup.
+
+It's off unless both `SHARED_PLAYLIST_SAVING=on` and `SPOTIFY_OWNER_REFRESH_TOKEN` are set.
+
+### Turn it on
+1. Run Echo locally (`npm run dev`) and open `http://127.0.0.1:3000/api/spotify/login?owner=1`. Sign in with the Spotify account the playlists should live on and allow access.
+2. Open `http://127.0.0.1:3000/api/spotify/owner-token` and copy the token. This page only works locally.
+3. In Vercel, add these Production environment variables, then redeploy:
+   - `SPOTIFY_OWNER_REFRESH_TOKEN`: the token from step 2. Keep it private.
+   - `SHARED_PLAYLIST_SAVING`: `on`
+   - `CRON_SECRET`: any long random string. Vercel Cron sends it to the daily cleanup job.
+
+Cleanup runs whenever someone saves a new shared playlist, and once a day from `vercel.json` (Vercel's Hobby plan allows daily cron jobs).
+
+### Turn it off
+Set `SHARED_PLAYLIST_SAVING` to `off` in Vercel and redeploy. Save to Spotify goes back to working only for listed accounts. Playlists people already saved stay in their libraries.
+
+### Remove it completely
+Delete these files and the environment variables above:
+- `lib/spotify-owner.ts`
+- `app/api/spotify/shared-playlist/route.ts`
+- `app/api/spotify/owner-token/route.ts`
+- `app/api/cron/shared-playlist-cleanup/route.ts`
+- `vercel.json` (it only holds the cleanup schedule)
+
+Then remove the fallback in `lib/save-to-spotify.ts` (the `401`/`403` branch) and the `?owner=1` scopes in `app/api/spotify/login/route.ts`. To revoke the owner token itself, remove Echo under **Manage apps** in your Spotify account settings.
+
 ## Project files
 
 This guide covers the files checked into the repository. `node_modules`, `.next`, and other generated files are created locally and are not listed here.

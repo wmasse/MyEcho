@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSpotifyAccessToken } from "@/lib/spotify";
+import { getSpotifyAppToken } from "@/lib/spotify-app-token";
 import { trackIdentityKey } from "@/lib/track-identity";
 import { upstreamTimeout } from "@/lib/upstream";
 
@@ -808,7 +809,12 @@ export async function POST(
   let spotifyToken: string | null = null;
 
   try {
-    spotifyToken = await getSpotifyAccessToken();
+    // Only catalog search needs a token here, so Echo's own key works
+    // for visitors who aren't signed in. That keeps mixes on Spotify
+    // tracks instead of falling back to Apple Music.
+    spotifyToken =
+      (await getSpotifyAccessToken()) ??
+      (await getSpotifyAppToken());
   } catch (error) {
     console.error(
       "Spotify token unavailable; using Apple Music catalog fallback:",
@@ -874,7 +880,7 @@ export async function POST(
 
   if (spotifyOnly && !spotifyToken) {
     return NextResponse.json(
-      { error: "Connect Spotify to find Spotify-only tracks." },
+      { error: "Spotify isn't available right now, so Spotify-only mixes can't be built. Try again in a minute." },
       { status: 401 }
     );
   }

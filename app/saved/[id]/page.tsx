@@ -8,6 +8,11 @@ import {
   SPOTIFY_PLAYLISTS_ENABLED,
   SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
 } from "@/lib/spotify-playlists";
+import {
+  saveMixToSpotify,
+  sharedPlaylistNotice,
+  skippedSongsNotice,
+} from "@/lib/save-to-spotify";
 import CoverArt from "@/components/CoverArt";
 
 type Track = {
@@ -55,6 +60,7 @@ function SavedEchoContent() {
   const [name, setName] = useState("");
 
   const [savingSpotify, setSavingSpotify] = useState(false);
+  const [sharedSpotifyNotice, setSharedSpotifyNotice] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -158,31 +164,28 @@ function SavedEchoContent() {
     setSavingSpotify(true);
     setError("");
 
+    setSharedSpotifyNotice("");
+
     try {
-      const response = await fetch("/api/spotify/playlist", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: playlist.name,
-          description: "Created with Echo.",
-          uris: playlist.tracks.map((track) => track.uri),
-        }),
+      const saved = await saveMixToSpotify({
+        name: playlist.name,
+        description: "Created with Echo.",
+        tracks: playlist.tracks,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-            data.error ||
-            "Could not save playlist to Spotify."
-        );
-      }
+      setSharedSpotifyNotice(
+        [
+          saved.kind === "shared"
+            ? sharedPlaylistNotice(saved.removeAfterMinutes)
+            : "",
+          skippedSongsNotice(saved.skipped),
+        ]
+          .filter(Boolean)
+          .join(" ")
+      );
 
       window.open(
-        data.playlist.url,
+        saved.url,
         "_blank",
         "noopener,noreferrer"
       );
@@ -318,6 +321,12 @@ function SavedEchoContent() {
           {error && (
             <p className="mt-4 text-sm text-red-400">
               {error}
+            </p>
+          )}
+
+          {sharedSpotifyNotice && (
+            <p className="mt-4 max-w-xl text-sm text-zinc-400">
+              {sharedSpotifyNotice}
             </p>
           )}
         </section>
