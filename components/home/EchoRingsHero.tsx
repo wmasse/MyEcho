@@ -1,29 +1,34 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import type { PopularAlbum } from "@/lib/home";
 
 /*
- * The home page's signature image: one album in the middle, and the
- * albums that "echo" it rippling outward on rings, smaller and fainter
- * the further out they sit. When the list rotates, each cover glides
- * one slot inward, so a new album takes the center.
+ * The home page's signature image: a search box in the middle, with
+ * album covers rippling outward on rings around it, smaller and fainter
+ * the further out they sit. Farther rings are slightly blurred, like
+ * they're out of focus. When the list rotates, each cover glides to the
+ * next slot.
  *
- * Positions are percentages of a square stage, so it scales from
- * phone to desktop without media queries.
+ * Positions are percentages of a square stage, so it scales from phone
+ * to desktop without media queries.
  */
-type Slot = { radius: number; angle: number; size: number; opacity: number };
+type Slot = { radius: number; angle: number; size: number; opacity: number; blur: number };
 
-const RINGS = [22, 34, 45]; // ring radius, % of the stage width
+const RINGS = [27, 38, 48]; // ring radius, % of the stage width
 
+// Inner covers sit above and below the search box, never beside it.
 const SLOTS: Slot[] = [
-  { radius: 0, angle: 0, size: 27, opacity: 1 },
-  { radius: RINGS[0], angle: -55, size: 14, opacity: 1 },
-  { radius: RINGS[0], angle: 125, size: 14, opacity: 1 },
-  { radius: RINGS[1], angle: 15, size: 11, opacity: 0.85 },
-  { radius: RINGS[1], angle: 195, size: 11, opacity: 0.85 },
-  { radius: RINGS[1], angle: 265, size: 11, opacity: 0.85 },
-  { radius: RINGS[2], angle: -25, size: 8, opacity: 0.6 },
-  { radius: RINGS[2], angle: 95, size: 8, opacity: 0.6 },
-  { radius: RINGS[2], angle: 228, size: 8, opacity: 0.6 },
+  { radius: RINGS[0], angle: -60, size: 13, opacity: 1, blur: 0 },
+  { radius: RINGS[0], angle: -120, size: 13, opacity: 1, blur: 0 },
+  { radius: RINGS[0], angle: 60, size: 13, opacity: 1, blur: 0 },
+  { radius: RINGS[0], angle: 120, size: 13, opacity: 1, blur: 0 },
+  { radius: RINGS[1], angle: -25, size: 10, opacity: 0.85, blur: 1 },
+  { radius: RINGS[1], angle: 205, size: 10, opacity: 0.85, blur: 1 },
+  { radius: RINGS[1], angle: 90, size: 10, opacity: 0.85, blur: 1 },
+  { radius: RINGS[2], angle: 18, size: 7.5, opacity: 0.6, blur: 2 },
+  { radius: RINGS[2], angle: 162, size: 7.5, opacity: 0.6, blur: 2 },
 ];
 
 function slotStyle(slot: Slot) {
@@ -36,61 +41,32 @@ function slotStyle(slot: Slot) {
     top: `${round(50 + slot.radius * Math.sin(radians))}%`,
     width: `${slot.size}%`,
     opacity: slot.opacity,
-  };
+    "--cover-blur": `${slot.blur}px`,
+  } as React.CSSProperties;
 }
 
 export default function EchoRingsHero({
   albums,
   onPausedChange,
   onSelect,
-  onStart,
+  onSearch,
 }: {
   albums: PopularAlbum[];
   onPausedChange: (paused: boolean) => void;
   onSelect: (album: PopularAlbum) => void;
-  onStart: () => void;
+  onSearch: (query: string) => void;
 }) {
+  const [query, setQuery] = useState("");
   const shown = albums.slice(0, SLOTS.length);
-  const center = shown[0];
 
   return (
-    <section className="grid grid-cols-[minmax(0,1fr)] items-center gap-8 pb-16 pt-6 sm:pt-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14 lg:pb-24">
-      {/* TEXT */}
-      <div className="order-2 text-center lg:order-1 lg:text-left">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1DB954] sm:text-sm">
-          Your music, reorganized
-        </p>
+    <section className="pb-14 pt-2 sm:pb-20 sm:pt-6">
+      <h1 className="sr-only">
+        Echo: start with one song and hear what echoes
+      </h1>
 
-        <h1 className="mt-4 text-4xl font-bold leading-[1.05] tracking-tight text-balance sm:text-5xl lg:text-6xl">
-          Start with one song.{" "}
-          <span className="text-[#1DB954]">Hear what echoes.</span>
-        </h1>
-
-        <p className="mx-auto mt-5 max-w-md text-base leading-7 text-zinc-400 sm:text-lg lg:mx-0">
-          Pick up to five songs you love. Echo builds a mix around their
-          shared sound.
-        </p>
-
-        <div className="mt-7 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
-          <button
-            type="button"
-            onClick={onStart}
-            className="min-h-12 rounded-full bg-[#1DB954] px-7 font-bold text-black transition hover:bg-[#22cf63] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1DB954]"
-          >
-            Pick a song
-          </button>
-
-          {center && (
-            <p className="text-sm text-zinc-500">
-              Or tap a cover to start from it
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* RINGS */}
       <div
-        className="order-1 mx-auto w-full max-w-[340px] sm:max-w-[440px] lg:order-2 lg:max-w-[540px]"
+        className="mx-auto w-full max-w-[360px] sm:max-w-[520px] lg:max-w-[600px]"
         onMouseEnter={() => onPausedChange(true)}
         onMouseLeave={() => onPausedChange(false)}
         onFocusCapture={() => onPausedChange(true)}
@@ -114,53 +90,80 @@ export default function EchoRingsHero({
                 }}
               />
             ))}
-            <div className="echo-ripple absolute left-1/2 top-1/2 h-[90%] w-[90%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#1DB954]/50" />
+            <div className="echo-ripple absolute left-1/2 top-1/2 h-[96%] w-[96%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#1DB954]/50" />
           </div>
 
           <ul aria-label="Popular albums to start a mix from">
-            {shown.map((album, index) => {
-              const isCenter = index === 0;
-
-              return (
-                <li
-                  key={album.id}
-                  className="absolute aspect-square -translate-x-1/2 -translate-y-1/2 transition-[left,top,width,opacity] duration-[900ms] ease-[cubic-bezier(0.2,0.75,0.25,1)] motion-reduce:transition-none"
-                  style={{ ...slotStyle(SLOTS[index]), zIndex: SLOTS.length - index }}
+            {shown.map((album, index) => (
+              <li
+                key={album.id}
+                className="absolute aspect-square -translate-x-1/2 -translate-y-1/2 transition-[left,top,width,opacity,filter] duration-[900ms] ease-[cubic-bezier(0.2,0.75,0.25,1)] motion-reduce:transition-none"
+                style={slotStyle(SLOTS[index])}
+              >
+                <button
+                  type="button"
+                  onClick={() => onSelect(album)}
+                  aria-label={`Start a mix from ${album.name} by ${album.artist}`}
+                  title={`${album.name} · ${album.artist}`}
+                  className="relative block h-full w-full overflow-hidden rounded-[22%] bg-zinc-900 shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition [filter:blur(var(--cover-blur))] hover:scale-110 hover:[filter:none] focus-visible:[filter:none] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1DB954]"
                 >
-                  <button
-                    type="button"
-                    onClick={() => onSelect(album)}
-                    aria-label={`Start a mix from ${album.name} by ${album.artist}`}
-                    title={`${album.name} · ${album.artist}`}
-                    className={`relative block h-full w-full overflow-hidden bg-zinc-900 transition hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1DB954] ${
-                      isCenter
-                        ? "rounded-[18%] shadow-[0_0_0_4px_#070707,0_0_0_5px_#1DB954,0_24px_60px_rgba(0,0,0,0.55)]"
-                        : "rounded-[22%] shadow-[0_10px_30px_rgba(0,0,0,0.45)]"
-                    }`}
-                  >
-                    <Image
-                      src={album.image}
-                      alt=""
-                      fill
-                      loading="eager"
-                      sizes={isCenter ? "(max-width: 639px) 92px, 150px" : "60px"}
-                      className="object-cover"
-                    />
-                  </button>
-                </li>
-              );
-            })}
+                  <Image
+                    src={album.image}
+                    alt=""
+                    fill
+                    loading="eager"
+                    sizes="80px"
+                    className="object-cover"
+                  />
+                </button>
+              </li>
+            ))}
           </ul>
+
+          {/* SEARCH, the center of the echo */}
+          <form
+            role="search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (query.trim()) onSearch(query.trim());
+            }}
+            className="absolute left-1/2 top-1/2 z-10 w-[84%] -translate-x-1/2 -translate-y-1/2 sm:w-[62%]"
+          >
+            <label htmlFor="hero-search" className="sr-only">
+              Search for a song to start your mix
+            </label>
+            <div className="flex h-14 items-center gap-2 rounded-full border border-white/[0.12] bg-[#121212] pl-4 pr-1.5 sm:pl-5 shadow-[0_0_0_8px_#070707,0_20px_50px_rgba(0,0,0,0.6)] transition focus-within:border-[#1DB954]/60">
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="h-5 w-5 shrink-0 text-zinc-500">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-3.5-3.5" />
+              </svg>
+              <input
+                id="hero-search"
+                type="search"
+                enterKeyHint="search"
+                autoComplete="off"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search a song"
+                className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-zinc-500"
+              />
+              <button
+                type="submit"
+                aria-label="Search"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1DB954] text-black transition hover:bg-[#22cf63] disabled:opacity-40"
+                disabled={!query.trim()}
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </button>
+            </div>
+          </form>
         </div>
 
-        {center && (
-          <p className="mt-3 truncate text-center text-sm text-zinc-500" aria-live="polite">
-            In the middle:{" "}
-            <span className="font-semibold text-zinc-300">{center.name}</span>
-            {" · "}
-            {center.artist}
-          </p>
-        )}
+        <p className="mt-2 text-center text-sm text-zinc-500">
+          Pick up to five songs. Or tap a cover to start from it.
+        </p>
       </div>
     </section>
   );

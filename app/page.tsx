@@ -215,16 +215,39 @@ export default function Home() {
     setSearchingSpotify(Boolean(value.trim()));
   }
 
-  function searchPopularAlbum(album: PopularAlbum) {
-    if (search !== album.name) {
-      handleSearchChange(album.name);
+  /*
+   * Search from the hero (its search box or a cover). New visitors who
+   * haven't picked a start option yet are treated as "Just search", so
+   * the results area is on screen. Then jump to the results.
+   */
+  function startSearch(query: string) {
+    const resultsVisible =
+      connected || librarySkipped || tracks.length > 0;
+
+    if (!resultsVisible) {
+      continueWithoutLoading();
     }
 
-    const searchInput = searchInputRef.current;
-    if (searchInput) {
-      searchInput.scrollIntoView({ behavior: "smooth", block: "center" });
-      searchInput.focus({ preventScroll: true });
+    if (search !== query) {
+      handleSearchChange(query);
     }
+
+    // Wait a frame so the results area exists before scrolling to it.
+    requestAnimationFrame(() => {
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)"
+      ).matches;
+
+      document.getElementById("start")?.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "start",
+      });
+      searchInputRef.current?.focus({ preventScroll: true });
+    });
+  }
+
+  function searchPopularAlbum(album: PopularAlbum) {
+    startSearch(album.name);
   }
 
   useEffect(() => {
@@ -907,20 +930,6 @@ export default function Home() {
     setError("");
   }
 
-  // "Pick a song" in the hero: jump to the search box, or to the
-  // start chooser when there's no library yet.
-  function goToStart() {
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-
-    document.getElementById("start")?.scrollIntoView({
-      behavior: reduceMotion ? "auto" : "smooth",
-      block: "start",
-    });
-    searchInputRef.current?.focus({ preventScroll: true });
-  }
-
   function continueWithoutLoading() {
     libraryLoadController.current?.abort();
 
@@ -1393,7 +1402,7 @@ export default function Home() {
           albums={heroAlbums}
           onPausedChange={setHeroPaused}
           onSelect={searchPopularAlbum}
-          onStart={goToStart}
+          onSearch={startSearch}
         />
 
         {/* ERROR */}
