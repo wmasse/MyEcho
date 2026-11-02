@@ -131,7 +131,7 @@ export default function LibraryStart({
       : "border-white/[0.08] bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]";
 
   return (
-    <section className="mb-20 rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8 md:p-12">
+    <section id="start" className="mb-20 scroll-mt-6 rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8 md:p-12">
       <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
         How do you want to start?
       </h2>
