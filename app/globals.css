@@ -8,7 +8,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: Arial, Helvetica, sans-serif;
+  --font-sans: var(--font-hanken), Arial, Helvetica, sans-serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
@@ -29,7 +29,7 @@ body {
   background: var(--background);
   -webkit-tap-highlight-color: transparent;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-hanken), Arial, Helvetica, sans-serif;
 }
 
 /*
@@ -43,6 +43,29 @@ body {
     rgb(29 185 84 / 0.05) 55%,
     transparent 100%
   );
+}
+
+/* A ring that slowly spreads out from the center album on the home page. */
+@keyframes echo-ripple {
+  from {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 0.6;
+  }
+
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
+}
+
+.echo-ripple {
+  animation: echo-ripple 5.2s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .echo-ripple {
+    display: none;
+  }
 }
 
 @keyframes album-cover-turn {

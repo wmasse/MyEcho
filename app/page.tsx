@@ -8,7 +8,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import SiteNav from "@/components/SiteNav";
-import PopularAlbumsHero from "@/components/home/PopularAlbumsHero";
+import EchoRingsHero from "@/components/home/EchoRingsHero";
 import LibraryStart from "@/components/home/LibraryStart";
 import LoadMore from "@/components/home/LoadMore";
 import SeedTray from "@/components/home/SeedTray";
@@ -907,6 +907,20 @@ export default function Home() {
     setError("");
   }
 
+  // "Pick a song" in the hero: jump to the search box, or to the
+  // start chooser when there's no library yet.
+  function goToStart() {
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    document.getElementById("start")?.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "start",
+    });
+    searchInputRef.current?.focus({ preventScroll: true });
+  }
+
   function continueWithoutLoading() {
     libraryLoadController.current?.abort();
 
@@ -1375,30 +1389,12 @@ export default function Home() {
         />
 
         {/* HERO */}
-        <section className="pb-16 pt-14 md:pb-20 md:pt-16">
-          <p className="mb-6 text-sm font-semibold uppercase tracking-[0.2em] text-[#1DB954]">
-            Your music, reorganized
-          </p>
-
-          <h1 className="sr-only">
-            Popular albums to inspire your next blend
-          </h1>
-
-          <PopularAlbumsHero
-            albums={heroAlbums}
-            onPausedChange={setHeroPaused}
-            onSelect={searchPopularAlbum}
-          />
-
-          <p className="mt-8 max-w-2xl text-lg leading-8 text-zinc-400 md:text-xl">
-            Pick up to five
-            songs from anywhere
-            on Spotify. Echo
-            builds a playlist
-            around their shared
-            sound.
-          </p>
-        </section>
+        <EchoRingsHero
+          albums={heroAlbums}
+          onPausedChange={setHeroPaused}
+          onSelect={searchPopularAlbum}
+          onStart={goToStart}
+        />
 
         {/* ERROR */}
         {error && (
@@ -1479,7 +1475,7 @@ export default function Home() {
             0) && (
           <>
             {/* SEARCH BAR */}
-            <section className="sticky top-0 z-20 -mx-6 border-y border-white/[0.06] bg-[#070707]/90 px-6 py-3 backdrop-blur-xl sm:py-5 md:-mx-10 md:px-10 lg:-mx-14 lg:px-14">
+            <section id="start" className="sticky top-0 z-20 -mx-6 border-y border-white/[0.06] bg-[#070707]/90 px-6 py-3 backdrop-blur-xl sm:py-5 md:-mx-10 md:px-10 lg:-mx-14 lg:px-14">
               <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-baseline justify-between gap-3 md:block">
                   <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
