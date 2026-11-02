@@ -10,6 +10,10 @@ import {
   SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
 } from "@/lib/spotify-playlists";
 import {
+  saveMixToSpotify,
+  sharedPlaylistNotice,
+} from "@/lib/save-to-spotify";
+import {
   dedupeTracksByIdentity,
   trackIdentityKey,
 } from "@/lib/track-identity";
@@ -89,6 +93,7 @@ function EchoContent() {
 
   const [finding, setFinding] = useState(true);
   const [savingSpotify, setSavingSpotify] = useState(false);
+  const [sharedSpotifyNotice, setSharedSpotifyNotice] = useState("");
   const [savingEcho, setSavingEcho] = useState(false);
   const [activeSavedEchoId, setActiveSavedEchoId] = useState<string | null>(
     null
@@ -498,34 +503,22 @@ function EchoContent() {
     setSavingSpotify(true);
     setError("");
     setSavedSpotifyUrl(null);
+    setSharedSpotifyNotice("");
 
     try {
-      const response = await fetch(
-        "/api/spotify/playlist",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: playlistName.trim() || "My Echo",
-            description: "Created with Echo.",
-            uris: results.map((track) => track.uri),
-          }),
-        }
-      );
+      const saved = await saveMixToSpotify({
+        name: playlistName.trim() || "My Echo",
+        description: "Created with Echo.",
+        uris: results.map((track) => track.uri),
+      });
 
-      const data = await response.json();
+      setSavedSpotifyUrl(saved.url);
 
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-            data.error ||
-            "Could not save playlist to Spotify."
+      if (saved.kind === "shared") {
+        setSharedSpotifyNotice(
+          sharedPlaylistNotice(saved.removeAfterMinutes)
         );
       }
-
-      setSavedSpotifyUrl(data.playlist.url);
     } catch (err) {
       console.error(err);
       setError(
@@ -1237,6 +1230,12 @@ function EchoContent() {
                 >
                   Open in Spotify ↗
                 </a>
+              )}
+
+              {sharedSpotifyNotice && (
+                <p className="mt-2 text-center text-xs leading-5 text-zinc-400">
+                  {sharedSpotifyNotice}
+                </p>
               )}
             </div>
           </aside>

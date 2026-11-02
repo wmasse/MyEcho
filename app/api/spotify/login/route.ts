@@ -22,6 +22,11 @@ export async function GET(request: NextRequest) {
     ...(SPOTIFY_PLAYLISTS_ENABLED
       ? ["playlist-modify-private"]
       : []),
+    // One-time setup for backup saving: the site owner signs in with
+    // ?owner=1 to allow public playlists. See lib/spotify-owner.ts.
+    ...(request.nextUrl.searchParams.get("owner") === "1"
+      ? ["playlist-modify-public", "playlist-read-private"]
+      : []),
   ].join(" ");
 
   const params = new URLSearchParams({
