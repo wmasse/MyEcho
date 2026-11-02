@@ -28,6 +28,7 @@ import {
   type SortMode,
   type Track,
 } from "@/lib/home";
+import PageTransition from "@/components/PageTransition";
 
 const TRACKS_PER_BATCH = 60;
 
@@ -1374,6 +1375,7 @@ export default function Home() {
     );
 
   return (
+    <PageTransition>
     <main className="min-h-screen bg-[#070707] pb-44 text-white">
       {/* BACKGROUND */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
@@ -1935,5 +1937,6 @@ export default function Home() {
         onContinue={findEcho}
       />
     </main>
+    </PageTransition>
   );
 }

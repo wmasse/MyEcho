@@ -19,6 +19,7 @@ import {
   trackIdentityKey,
 } from "@/lib/track-identity";
 import CoverArt from "@/components/CoverArt";
+import PageTransition from "@/components/PageTransition";
 
 type Track = {
   id: string;
@@ -576,6 +577,7 @@ function EchoContent() {
   const hasOnlySpotifyTracks = results.every(isSpotifyTrack);
 
   return (
+    <PageTransition>
     <main className="min-h-screen bg-[#070707] text-white">
       {/* BACKGROUND */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
@@ -1243,6 +1245,7 @@ function EchoContent() {
         </section>
       </div>
     </main>
+    </PageTransition>
   );
 }
 

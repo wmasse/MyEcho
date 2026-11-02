@@ -67,3 +67,40 @@ body {
     animation: none;
   }
 }
+
+/*
+ * Page transitions (see components/PageTransition.tsx and SiteNav).
+ * The old page leaves quickly and the new one fades in just after, so
+ * they never compete. The nav and its active highlight are named and
+ * morph in place instead of fading.
+ */
+@keyframes page-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+::view-transition-old(.page-exit) {
+  animation: 140ms ease-in both page-fade reverse;
+}
+
+::view-transition-new(.page-enter) {
+  animation: 240ms ease-out 60ms both page-fade;
+}
+
+::view-transition-group(nav-active) {
+  animation-duration: 320ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { ViewTransition, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import CoverArt from "@/components/CoverArt";
 import EchoLogo from "@/components/EchoLogo";
@@ -30,6 +30,51 @@ const LINKS: {
   { page: "stats", href: "/stats", label: "Stats", Icon: ChartIcon },
 ];
 
+/*
+ * PAGE CHANGES
+ *
+ * The nav carries a view-transition name, so it holds still while the
+ * page below crossfades, and the active highlight has its own name, so
+ * it slides to the new link. A thin ring then echoes out from the link
+ * that was tapped. The nav sits in the same place on every page, so the
+ * ring starts from the tapped link and waits out the crossfade (the
+ * browser draws page transitions on top of everything).
+ */
+const RING_DELAY_MS = 320;
+const RING_MS = 900;
+
+function echoRingFrom(element: HTMLElement) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  const box = element.getBoundingClientRect();
+  const size = Math.hypot(window.innerWidth, window.innerHeight) * 1.4;
+  const ring = document.createElement("div");
+
+  ring.setAttribute("aria-hidden", "true");
+  Object.assign(ring.style, {
+    position: "fixed",
+    left: `${box.left + box.width / 2 - size / 2}px`,
+    top: `${box.top + box.height / 2 - size / 2}px`,
+    width: `${size}px`,
+    height: `${size}px`,
+    borderRadius: "50%",
+    border: "1px solid rgb(29 185 84 / 0.55)",
+    pointerEvents: "none",
+    zIndex: "60",
+  });
+  document.body.appendChild(ring);
+
+  ring
+    .animate(
+      [
+        { transform: "scale(0.02)", opacity: 1 },
+        { transform: "scale(1)", opacity: 0 },
+      ],
+      { duration: RING_MS, delay: RING_DELAY_MS, easing: "cubic-bezier(0.2, 0.7, 0.3, 1)", fill: "backwards" }
+    )
+    .finished.finally(() => ring.remove());
+}
+
 export type NavLibrary = {
   /** e.g. "1,240 liked songs" */
   summary: string;
@@ -49,6 +94,7 @@ export default function SiteNav({
   className?: string;
 }) {
   return (
+    <ViewTransition name="site-nav">
     <nav
       aria-label="Main"
       className={`flex h-20 items-center justify-between gap-2 sm:h-28 sm:gap-3 lg:h-32 ${className}`}
@@ -63,16 +109,29 @@ export default function SiteNav({
             <Link
               key={page}
               href={href}
+              onClick={(event) => {
+                if (!active) echoRingFrom(event.currentTarget);
+              }}
               aria-current={active ? "page" : undefined}
               title={label}
-              className={`flex h-10 min-w-9 items-center justify-center gap-2 rounded-[10px] text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1DB954] sm:h-9 sm:min-w-10 sm:px-3 ${
+              className={`relative flex h-10 min-w-9 items-center justify-center gap-2 rounded-[10px] text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1DB954] sm:h-9 sm:min-w-10 sm:px-3 ${
                 active
-                  ? "bg-white/[0.08] text-white"
+                  ? "text-white"
                   : "text-zinc-400 hover:bg-white/[0.05] hover:text-white"
               }`}
             >
-              <Icon />
-              <span className="sr-only sm:not-sr-only">{label}</span>
+              {active && (
+                <ViewTransition name="nav-active">
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 rounded-[10px] bg-white/[0.08]"
+                  />
+                </ViewTransition>
+              )}
+              <span className="relative flex items-center gap-2">
+                <Icon />
+                <span className="sr-only sm:not-sr-only">{label}</span>
+              </span>
             </Link>
           );
         })}
@@ -80,11 +139,15 @@ export default function SiteNav({
         <AccountMenu library={library} />
       </div>
     </nav>
+    </ViewTransition>
   );
 }
 
+// Fetched once per visit, so the profile circle doesn't flash on each page.
+let cachedProfile: Profile | null = null;
+
 function AccountMenu({ library }: { library?: NavLibrary }) {
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(cachedProfile);
   const [open, setOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [error, setError] = useState("");
@@ -95,9 +158,12 @@ function AccountMenu({ library }: { library?: NavLibrary }) {
   useEffect(() => {
     let cancelled = false;
 
+    if (cachedProfile) return;
+
     fetch("/api/spotify/me", { cache: "no-store" })
       .then((response) => response.json())
       .then((data: Profile) => {
+        cachedProfile = data;
         if (!cancelled) setProfile(data);
       })
       .catch(() => {

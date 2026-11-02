@@ -14,6 +14,7 @@ import {
 } from "@/lib/save-to-spotify";
 import { dedupeTracksByIdentity } from "@/lib/track-identity";
 import CoverArt from "@/components/CoverArt";
+import PageTransition from "@/components/PageTransition";
 
 type Track = {
   id: string;
@@ -161,6 +162,7 @@ export default function SavedPage() {
   }
 
   return (
+    <PageTransition>
     <main className="min-h-screen bg-[#070707] text-white">
       {/* BACKGROUND */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
@@ -365,5 +367,6 @@ export default function SavedPage() {
         )}
       </div>
     </main>
+    </PageTransition>
   );
 }

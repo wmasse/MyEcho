@@ -10,6 +10,7 @@ import {
   type SharedEcho,
 } from "@/lib/shared-echo";
 import CoverArt from "@/components/CoverArt";
+import PageTransition from "@/components/PageTransition";
 
 type SavedEcho = {
   id: string;
@@ -118,6 +119,7 @@ export default function SharedEchoView({
   }
 
   return (
+    <PageTransition>
     <main className="min-h-screen bg-[#070707] text-white">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="echo-glow absolute inset-x-0 top-0 h-[520px]" />
@@ -243,5 +245,6 @@ export default function SharedEchoView({
         )}
       </div>
     </main>
+    </PageTransition>
   );
 }

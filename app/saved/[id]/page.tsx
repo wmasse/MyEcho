@@ -14,6 +14,7 @@ import {
   skippedSongsNotice,
 } from "@/lib/save-to-spotify";
 import CoverArt from "@/components/CoverArt";
+import PageTransition from "@/components/PageTransition";
 
 type Track = {
   id: string;
@@ -214,6 +215,7 @@ function SavedEchoContent() {
   ).length;
 
   return (
+    <PageTransition>
     <main className="min-h-screen bg-[#070707] text-white">
       {/* BACKGROUND */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
@@ -482,6 +484,7 @@ function SavedEchoContent() {
         </section>
       </div>
     </main>
+    </PageTransition>
   );
 }
 

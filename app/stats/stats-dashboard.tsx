@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import SiteNav from "@/components/SiteNav";
 import CoverArt from "@/components/CoverArt";
+import PageTransition from "@/components/PageTransition";
 
 type TimeRange = "short_term" | "medium_term" | "long_term";
 
@@ -219,6 +220,7 @@ export default function StatsDashboard() {
   const missingRequiredAccess = data?.needsReauthorization ?? false;
 
   return (
+    <PageTransition>
     <main className="min-h-screen bg-[#070707] pb-24 text-white">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="echo-glow absolute inset-x-0 top-0 h-[520px]" />
@@ -525,5 +527,6 @@ export default function StatsDashboard() {
         )}
       </div>
     </main>
+    </PageTransition>
   );
 }
