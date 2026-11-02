@@ -9,6 +9,7 @@ import {
 import { useRouter } from "next/navigation";
 import SiteNav from "@/components/SiteNav";
 import PopularAlbumsHero from "@/components/home/PopularAlbumsHero";
+import LibraryStart from "@/components/home/LibraryStart";
 import LoadMore from "@/components/home/LoadMore";
 import SeedTray from "@/components/home/SeedTray";
 import TrackCard from "@/components/home/TrackCard";
@@ -872,6 +873,40 @@ export default function Home() {
     }
   }
 
+  /*
+   * Songs pasted from the Spotify app become
+   * the library, cached the same way as liked
+   * songs so the mix page can use them.
+   */
+  function applyImportedSongs(pasted: Omit<Track, "addedAt">[]) {
+    // Keep the pasted order: the first song counts as the most recently added.
+    const now = Date.now();
+    const imported: Track[] = pasted.map((track, index) => ({
+      ...track,
+      addedAt: new Date(now - index * 1000).toISOString(),
+    }));
+
+    try {
+      localStorage.setItem(
+        "echoSpotifyLibrary",
+        JSON.stringify(imported)
+      );
+      localStorage.setItem(
+        "echoSpotifyLibraryCachedAt",
+        Date.now().toString()
+      );
+    } catch {
+      // Storage can be full or blocked; the songs still work for this visit.
+    }
+
+    setTracks(imported);
+    setLoadedCount(imported.length);
+    setTotalCount(imported.length);
+    setLibrarySkipped(false);
+    setLibraryLoadFailed(false);
+    setError("");
+  }
+
   function continueWithoutLoading() {
     libraryLoadController.current?.abort();
 
@@ -1381,7 +1416,8 @@ export default function Home() {
 
         {/* LIBRARY LOAD FAILED */}
         {!loading &&
-          libraryLoadFailed && (
+          libraryLoadFailed &&
+          tracks.length > 0 && (
             <section className="mb-8 flex flex-col gap-6 rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8 md:flex-row md:items-center md:justify-between md:p-10">
               <div>
                 <h2 className="text-2xl font-bold tracking-tight">
@@ -1423,66 +1459,18 @@ export default function Home() {
             </section>
           )}
 
-        {/* NO CACHE YET */}
+        {/* START: no library yet */}
         {!loading &&
-          connected === null &&
-          tracks.length ===
-            0 &&
-          !librarySkipped && (
-            <section className="mb-20 rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8 md:p-12">
-              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Open up your
-                library.
-              </h2>
-
-              <p className="mt-4 max-w-xl text-lg text-zinc-400">
-                Echo will not
-                fetch your Liked
-                Songs
-                automatically.
-                Load them once,
-                then your cached
-                library stays on
-                this device until
-                you choose to
-                refresh it.
-              </p>
-
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => {
-                    void refreshLibrary();
-                  }}
-                  disabled={
-                    loading
-                  }
-                  className="inline-flex min-h-14 items-center justify-center rounded-full sm:min-h-16 bg-[#1DB954] px-10 text-base sm:text-lg font-bold text-black transition hover:scale-[1.02] hover:bg-[#22cf63] disabled:opacity-40"
-                >
-                  {loading
-                    ? "Loading..."
-                    : "Load library"}
-                </button>
-
-                <a
-                  href="/api/spotify/login"
-                  className="inline-flex min-h-14 items-center justify-center rounded-full sm:min-h-16 border border-white/[0.12] px-8 text-base sm:text-lg font-semibold text-white transition hover:bg-white/[0.06]"
-                >
-                  Connect Spotify
-                </a>
-
-                <button
-                  type="button"
-                  onClick={
-                    continueWithoutLoading
-                  }
-                  className="inline-flex min-h-14 items-center justify-center rounded-full sm:min-h-16 border border-white/[0.08] px-8 text-base sm:text-lg font-semibold text-zinc-400 transition hover:bg-white/[0.05] hover:text-white"
-                >
-                  Continue without
-                  library
-                </button>
-              </div>
-            </section>
+          tracks.length === 0 &&
+          !librarySkipped &&
+          (connected === null || libraryLoadFailed) && (
+            <LibraryStart
+              onLoadLiked={() => {
+                void refreshLibrary();
+              }}
+              onSkip={continueWithoutLoading}
+              onImported={applyImportedSongs}
+            />
           )}
 
         {(connected ||

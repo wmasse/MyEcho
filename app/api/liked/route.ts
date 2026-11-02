@@ -59,11 +59,18 @@ export async function GET(request: NextRequest) {
       headers.set("Retry-After", retryAfter);
     }
 
+    // Development Mode answers 403 for accounts that aren't on the
+    // app's user list. Trying again won't help, so say what will.
+    const notOnUserList = response.status === 403;
+
     return NextResponse.json(
       {
-        error: "spotify_request_failed",
-        message:
-          "Spotify couldn't load your library right now. Try again in a few minutes.",
+        error: notOnUserList
+          ? "spotify_account_not_added"
+          : "spotify_request_failed",
+        message: notOnUserList
+          ? "Spotify hasn't added your account to Echo yet, so Echo can't read your liked songs. Paste songs from the Spotify app instead, or ask the site owner to add you."
+          : "Spotify couldn't load your library right now. Try again in a few minutes.",
       },
       {
         status: response.status,
