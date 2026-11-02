@@ -1,7 +1,6 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import type { Metadata } from "next";
-import EchoLogo from "@/components/EchoLogo";
+import SiteNav from "@/components/SiteNav";
 import SharedEchoById from "./SharedEchoById";
 
 export const metadata: Metadata = {
@@ -36,15 +35,7 @@ function SharedEchoLoading() {
       </div>
 
       <div className="relative mx-auto max-w-5xl px-6 pb-20 md:px-10">
-        <nav className="flex h-24 items-center justify-between">
-          <EchoLogo />
-          <Link
-            href="/"
-            className="text-sm text-zinc-500 transition hover:text-white"
-          >
-            Create an Echo
-          </Link>
-        </nav>
+        <SiteNav />
 
         <section className="flex min-h-[50vh] flex-col items-center justify-center text-center">
           <div className="h-9 w-9 animate-spin rounded-full border-2 border-zinc-800 border-t-[#1DB954]" />

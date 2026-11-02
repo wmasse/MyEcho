@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import EchoLogo from "@/components/EchoLogo";
+import SiteNav from "@/components/SiteNav";
 import {
   SPOTIFY_PLAYLISTS_ENABLED,
   SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
@@ -166,29 +166,7 @@ export default function SavedPage() {
 
       <div className="relative mx-auto max-w-7xl px-6 pb-20 md:px-10 lg:px-14">
         {/* NAV */}
-        <nav className="flex h-24 items-center justify-between">
-          <EchoLogo />
-
-          <div className="flex items-center gap-7 text-sm">
-            <button
-              onClick={() => router.push("/")}
-              className="text-zinc-500 transition hover:text-white"
-            >
-              Create
-            </button>
-
-            <button
-              onClick={() => router.push("/stats")}
-              className="text-zinc-500 transition hover:text-white"
-            >
-              Stats
-            </button>
-
-            <span className="font-semibold text-white">
-              Saved
-            </span>
-          </div>
-        </nav>
+        <SiteNav current="saved" />
 
         {/* HEADER */}
         <section className="pb-14 pt-16">

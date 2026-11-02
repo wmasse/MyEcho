@@ -15,9 +15,50 @@ export default function SeedTray({
   }
 
   return (
-    <div className="fixed bottom-5 left-1/2 z-50 w-[calc(100%-24px)] max-w-6xl -translate-x-1/2">
-      <div className="rounded-[28px] border border-white/[0.1] bg-[#171717]/95 p-4 shadow-2xl shadow-black/70 backdrop-blur-2xl">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="fixed bottom-[max(12px,env(safe-area-inset-bottom))] left-1/2 z-50 w-[calc(100%-24px)] max-w-6xl -translate-x-1/2 sm:bottom-5">
+      <div className="rounded-[24px] border border-white/[0.1] bg-[#171717]/95 p-3 shadow-2xl shadow-black/70 backdrop-blur-2xl sm:rounded-[28px] sm:p-4">
+        {/* PHONES: covers only, so the tray stays one slim row */}
+        <div className="flex items-center gap-3 sm:hidden">
+          <div className="flex min-w-0 flex-1 gap-2.5 overflow-x-auto pr-1.5 pt-1.5 [scrollbar-width:none]">
+            {selected.map((track) => (
+              <div
+                key={track.id}
+                className="relative h-12 w-12 shrink-0"
+              >
+                <div className="h-full w-full overflow-hidden rounded-xl bg-zinc-800">
+                  {track.image && (
+                    <CoverArt
+                      src={track.image}
+                      alt={track.name}
+                      className="h-full w-full object-cover"
+                      size={48}
+                    />
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => onRemove(track.id)}
+                  aria-label={`Remove ${track.name}`}
+                  className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#171717] bg-zinc-600 text-xs leading-none text-white"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={onContinue}
+            className="min-h-12 shrink-0 rounded-full bg-[#1DB954] px-5 font-bold text-black transition active:scale-[0.98]"
+          >
+            Continue →
+          </button>
+        </div>
+
+        {/* TABLETS AND UP */}
+        <div className="hidden flex-col gap-4 sm:flex lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-3 overflow-x-auto">
             {selected.map((track) => (
               <div

@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import EchoLogo from "@/components/EchoLogo";
+import SiteNav from "@/components/SiteNav";
 import EchoScoreDetails from "@/components/EchoScoreDetails";
 import {
   SPOTIFY_PLAYLISTS_ENABLED,
@@ -219,25 +219,7 @@ function SavedEchoContent() {
 
       <div className="relative mx-auto max-w-6xl px-6 pb-24 md:px-10">
         {/* NAV */}
-        <nav className="flex h-24 items-center justify-between">
-          <EchoLogo />
-
-          <div className="flex items-center gap-7 text-sm">
-            <button
-              onClick={() => router.push("/")}
-              className="text-zinc-500 transition hover:text-white"
-            >
-              Create
-            </button>
-
-            <button
-              onClick={() => router.push("/saved")}
-              className="text-zinc-500 transition hover:text-white"
-            >
-              ← Saved
-            </button>
-          </div>
-        </nav>
+        <SiteNav current="saved" />
 
         {/* HEADER */}
         <section className="pb-12 pt-12">
@@ -395,15 +377,15 @@ function SavedEchoContent() {
             {playlist.tracks.map((track, index) => (
               <div
                 key={`${track.id}-${index}`}
-                className="group flex items-center gap-4 rounded-[18px] px-3 py-3 transition hover:bg-white/[0.045]"
+                className="group -mx-3 flex items-center gap-3 rounded-[18px] px-3 py-2.5 transition hover:bg-white/[0.045] sm:mx-0 sm:gap-4 sm:py-3"
               >
                 {/* NUMBER */}
-                <div className="w-7 text-center text-sm text-zinc-700">
+                <div className="hidden w-7 text-center text-sm text-zinc-700 sm:block">
                   {index + 1}
                 </div>
 
                 {/* ART */}
-                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-zinc-900">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-zinc-900 sm:h-14 sm:w-14">
                   {track.image && (
                     <CoverArt
                       src={track.image}

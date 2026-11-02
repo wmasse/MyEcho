@@ -19,8 +19,15 @@
   }
 }
 
+html {
+  /* Keep iPhone Safari from enlarging text in landscape. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background: var(--background);
+  -webkit-tap-highlight-color: transparent;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }

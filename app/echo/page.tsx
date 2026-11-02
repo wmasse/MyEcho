@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import EchoLogo from "@/components/EchoLogo";
+import SiteNav from "@/components/SiteNav";
 import EchoScoreDetails from "@/components/EchoScoreDetails";
 import ShareEchoButton from "@/components/ShareEchoButton";
 import {
@@ -585,32 +585,7 @@ function EchoContent() {
 
       <div className="relative mx-auto max-w-[1500px] px-6 pb-20 md:px-10 lg:px-14">
         {/* NAV */}
-        <nav className="flex h-24 items-center justify-between">
-          <EchoLogo />
-
-          <div className="flex items-center gap-7 text-sm">
-            <button
-              onClick={() => router.push("/")}
-              className="text-zinc-500 transition hover:text-white"
-            >
-              ← Change songs
-            </button>
-
-            <button
-              onClick={() => router.push("/saved")}
-              className="text-zinc-500 transition hover:text-white"
-            >
-              Saved
-            </button>
-
-            <button
-              onClick={() => router.push("/stats")}
-              className="text-zinc-500 transition hover:text-white"
-            >
-              Stats
-            </button>
-          </div>
-        </nav>
+        <SiteNav current="create" />
 
         {/* HEADER */}
         <section className="pb-14 pt-12">
@@ -663,7 +638,7 @@ function EchoContent() {
         </section>
 
         {/* MAIN */}
-        <section className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_390px]">
+        <section className="grid grid-cols-[minmax(0,1fr)] gap-14 lg:grid-cols-[minmax(0,1fr)_390px]">
           {/* RESULTS */}
           <div>
             {finding && results.length === 0 ? (
@@ -758,13 +733,13 @@ function EchoContent() {
                     (track, index) => (
                       <div
                         key={track.id}
-                        className="group flex items-center gap-4 rounded-[18px] px-3 py-3 transition hover:bg-white/[0.045]"
+                        className="group -mx-3 flex items-center gap-3 rounded-[18px] px-3 py-2.5 transition hover:bg-white/[0.045] sm:mx-0 sm:gap-4 sm:py-3"
                       >
-                        <div className="w-7 text-center text-sm text-zinc-700">
+                        <div className="hidden w-7 text-center text-sm text-zinc-700 sm:block">
                           {index + 1}
                         </div>
 
-                        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-zinc-900">
+                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-zinc-900 sm:h-14 sm:w-14">
                           {track.image && (
                             <CoverArt
                               src={track.image}
@@ -918,7 +893,7 @@ function EchoContent() {
                       setMaxSongsPerArtist(Number(event.target.value));
                       setMix(null);
                     }}
-                    className="rounded-lg border border-white/[0.1] bg-[#181818] px-3 py-2 text-sm text-white outline-none focus:border-[#1DB954]/60"
+                    className="rounded-lg border border-white/[0.1] bg-[#181818] px-3 py-2 text-base text-white outline-none focus:border-[#1DB954]/60 sm:text-sm"
                   >
                     {[1, 2, 3, 4, 5, 6, 8, 10].map((limit) => (
                       <option key={limit} value={limit}>

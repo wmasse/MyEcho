@@ -15,8 +15,8 @@ export default function EchoLogo({
         aria-hidden="true"
         className={
           size === "home"
-            ? "h-14 w-[196px] translate-y-12 sm:h-20 sm:w-[280px] lg:h-28 lg:w-[392px]"
-            : "h-12 w-[168px] sm:h-16 sm:w-56"
+            ? "h-11 w-[154px] translate-y-12 sm:h-20 sm:w-[280px] lg:h-28 lg:w-[392px]"
+            : "h-11 w-[154px] sm:h-16 sm:w-56"
         }
         viewBox="0 0 224 64"
         fill="none"
