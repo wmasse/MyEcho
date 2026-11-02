@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import EchoLogo from "@/components/EchoLogo";
+import SiteNav from "@/components/SiteNav";
 import CoverArt from "@/components/CoverArt";
 
 type TimeRange = "short_term" | "medium_term" | "long_term";
@@ -80,29 +79,10 @@ function dateGroup(value: string) {
   }).format(date);
 }
 
-function StatsNav() {
-  return (
-    <nav className="flex h-24 items-center justify-between">
-      <EchoLogo />
-      <div className="flex items-center gap-5 text-sm sm:gap-7">
-        <Link className="text-zinc-500 transition hover:text-white" href="/">
-          Create
-        </Link>
-        <Link className="text-zinc-500 transition hover:text-white" href="/saved">
-          Saved
-        </Link>
-        <span aria-current="page" className="font-semibold text-white">
-          Stats
-        </span>
-      </div>
-    </nav>
-  );
-}
-
 function StatCard({ label, value, detail }: { label: string; value: string; detail?: string }) {
   return (
-    <article className="rounded-[24px] border border-white/[0.07] bg-[#111111]/90 p-5 sm:p-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+    <article className="min-w-0 rounded-[24px] border border-white/[0.07] bg-[#111111]/90 p-4 sm:p-6">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 sm:text-xs sm:tracking-[0.16em]">
         {label}
       </p>
       <p className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
@@ -223,11 +203,11 @@ export default function StatsDashboard() {
   return (
     <main className="min-h-screen bg-[#070707] pb-24 text-white">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-[-430px] h-[700px] w-[1100px] -translate-x-1/2 rounded-full bg-[#1DB954]/10 blur-[190px]" />
+        <div className="echo-glow absolute inset-x-0 top-0 h-[520px]" />
       </div>
 
       <div className="relative mx-auto max-w-7xl px-5 md:px-10 lg:px-14">
-        <StatsNav />
+        <SiteNav current="stats" />
 
         <header className="pb-9 pt-12 md:pb-12 md:pt-16">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#1DB954]">
@@ -314,14 +294,14 @@ export default function StatsDashboard() {
 
         {connected !== false && (
           <>
-            <section aria-label="Listening overview" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <section aria-label="Listening overview" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <StatCard label="Recent plays" value={loading ? "—" : String(insights.playCount)} detail="from Spotify’s recent history" />
               <StatCard label="Artists heard" value={loading ? "—" : String(insights.artistCount)} detail="in the recent play sample" />
               <StatCard label="Genres among top artists" value={loading ? "—" : String(insights.genreCount)} detail={RANGES.find((item) => item.value === range)?.label} />
               <StatCard label="Most active hour" value={loading || insights.peakHour === null ? "—" : hourLabel(insights.peakHour)} detail="based on recent play times" />
             </section>
 
-            <section className="mt-7 grid gap-7 lg:grid-cols-[1.02fr_0.98fr]">
+            <section className="mt-7 grid grid-cols-[minmax(0,1fr)] gap-7 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]">
               <article className="overflow-hidden rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8">
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -411,7 +391,7 @@ export default function StatsDashboard() {
               </article>
             </section>
 
-            <section className="mt-7 grid gap-7 lg:grid-cols-[1.05fr_0.95fr]">
+            <section className="mt-7 grid grid-cols-[minmax(0,1fr)] gap-7 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
               <article className="rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8">
                 <div className="flex items-end justify-between gap-4">
                   <div>
@@ -481,7 +461,7 @@ export default function StatsDashboard() {
               {loading ? (
                 <div className="mt-6 space-y-4">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />)}</div>
               ) : groupedHistory.length > 0 ? (
-                <div className="mt-7 grid gap-8 md:grid-cols-2">
+                <div className="mt-7 grid grid-cols-[minmax(0,1fr)] gap-8 md:grid-cols-2">
                   {groupedHistory.map(([group, plays]) => (
                     <div key={group}>
                       <h3 className="mb-2 text-sm font-bold text-zinc-400">{group}</h3>

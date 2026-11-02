@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,6 +20,12 @@ export const metadata: Metadata = {
     icon: "/echo-mark.svg",
     shortcut: "/echo-mark.svg",
   },
+};
+
+export const viewport: Viewport = {
+  // Matches the page background, so Safari's bars blend in on iPhone.
+  themeColor: "#070707",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

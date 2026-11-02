@@ -47,6 +47,7 @@ export default function PopularAlbumsHero({
                 src={album.image}
                 alt=""
                 fill
+                loading="eager"
                 sizes="(max-width: 639px) 42vw, (max-width: 1279px) 22vw, 270px"
                 className="object-cover"
               />

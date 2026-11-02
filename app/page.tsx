@@ -7,8 +7,9 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import EchoLogo from "@/components/EchoLogo";
+import SiteNav from "@/components/SiteNav";
 import PopularAlbumsHero from "@/components/home/PopularAlbumsHero";
+import LoadMore from "@/components/home/LoadMore";
 import SeedTray from "@/components/home/SeedTray";
 import TrackCard from "@/components/home/TrackCard";
 import {
@@ -26,6 +27,8 @@ import {
   type SortMode,
   type Track,
 } from "@/lib/home";
+
+const TRACKS_PER_BATCH = 60;
 
 export default function Home() {
   const router = useRouter();
@@ -199,48 +202,6 @@ export default function Home() {
 
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const tracksRef = useRef(tracks);
-
-  const [
-    disconnecting,
-    setDisconnecting,
-  ] = useState(false);
-
-  /*
-   * Signs out of Spotify and forgets the
-   * cached library, so the next person on
-   * this browser doesn't see it. Saved
-   * Echoes stay.
-   */
-  async function disconnectSpotify() {
-    setDisconnecting(true);
-    libraryLoadController.current?.abort();
-
-    try {
-      const response = await fetch("/api/spotify/logout", {
-        method: "POST",
-      });
-
-      if (!response.ok) {
-        throw new Error(`Logout returned ${response.status}`);
-      }
-    } catch (error) {
-      console.error("Could not disconnect Spotify:", error);
-      setError("Spotify couldn't be disconnected. Check your connection and try again.");
-      setDisconnecting(false);
-      return;
-    }
-
-    try {
-      localStorage.removeItem("echoSpotifyLibrary");
-      localStorage.removeItem("echoSpotifyLibraryCachedAt");
-    } catch {
-      // Storage can be unavailable in private windows.
-    }
-
-    // A full reload clears every bit of in-memory library state.
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.assign("/");
-  }
 
   function handleSearchChange(value: string) {
     setSearch(value);
@@ -1303,6 +1264,34 @@ export default function Home() {
     cachedSearchResults.length === 0 &&
     appleResults.length > 0;
 
+  /*
+   * Big libraries render in batches, so a
+   * phone isn't building thousands of cards
+   * up front. The count resets whenever the
+   * list itself changes.
+   */
+  const listKey = `${genreFilter}|${sortMode}|${search}`;
+
+  const [
+    shownLimit,
+    setShownLimit,
+  ] = useState({ key: listKey, count: TRACKS_PER_BATCH });
+
+  const shownCount =
+    shownLimit.key === listKey
+      ? shownLimit.count
+      : TRACKS_PER_BATCH;
+
+  const shownTracks =
+    visibleTracks.slice(0, shownCount);
+
+  function showMoreTracks() {
+    setShownLimit({
+      key: listKey,
+      count: shownCount + TRACKS_PER_BATCH,
+    });
+  }
+
   const libraryIds =
     useMemo(
       () =>
@@ -1319,86 +1308,36 @@ export default function Home() {
     <main className="min-h-screen bg-[#070707] pb-44 text-white">
       {/* BACKGROUND */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-[-400px] h-[700px] w-[1100px] -translate-x-1/2 rounded-full bg-[#1DB954]/10 blur-[180px]" />
+        <div className="echo-glow absolute inset-x-0 top-0 h-[520px]" />
       </div>
 
       <div className="relative mx-auto max-w-7xl px-6 md:px-10 lg:px-14">
         {/* NAV */}
-        <nav className="flex h-24 items-center justify-between lg:h-28">
-          <EchoLogo size="home" />
-
-          <div className="flex items-center gap-7">
-            {connected &&
-              !librarySkipped && (
-                <span className="hidden text-sm text-zinc-600 sm:block">
-                  {loading
-                    ? `${loadedCount.toLocaleString()} / ${totalCount.toLocaleString()}`
-                    : `${tracks.length.toLocaleString()} songs`}
-                </span>
-              )}
-
-            {librarySkipped && (
-              <span className="hidden text-sm text-zinc-600 sm:block">
-                Library skipped
-              </span>
-            )}
-
-            {!librarySkipped && (
-              <button
-                type="button"
-                onClick={() => {
-                  void refreshLibrary();
-                }}
-                disabled={
-                  loading
+        <SiteNav
+          current="create"
+          library={
+            connected
+              ? {
+                  summary: librarySkipped
+                    ? "Library not loaded"
+                    : loading
+                      ? `Loading ${loadedCount.toLocaleString()} of ${totalCount.toLocaleString()} songs`
+                      : `${tracks.length.toLocaleString()} liked songs`,
+                  refreshLabel: loading
+                    ? "Refreshing…"
+                    : tracks.length > 0
+                      ? "Refresh library"
+                      : "Load library",
+                  refreshing: loading,
+                  onRefresh: librarySkipped
+                    ? undefined
+                    : () => {
+                        void refreshLibrary();
+                      },
                 }
-                className="text-sm text-zinc-500 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {loading
-                  ? "Refreshing..."
-                  : tracks.length >
-                      0
-                    ? "Refresh library"
-                    : "Load library"}
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => router.push("/stats")}
-              className="inline-flex items-center rounded-full border border-[#1DB954]/35 bg-[#1DB954]/[0.08] px-4 py-2 text-base font-medium text-[#1DB954] shadow-[0_0_14px_rgba(29,185,84,0.14)] transition-all duration-200 hover:border-[#1DB954]/60 hover:bg-[#1DB954]/[0.14] hover:text-[#7ef0a1] hover:shadow-[0_0_20px_rgba(29,185,84,0.24)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070707]"
-            >
-              Stats
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                router.push(
-                  "/saved"
-                )
-              }
-              className="inline-flex items-center rounded-full border border-[#1DB954]/35 bg-[#1DB954]/[0.08] px-4 py-2 text-base font-medium text-[#1DB954] shadow-[0_0_14px_rgba(29,185,84,0.14)] transition-all duration-200 hover:border-[#1DB954]/60 hover:bg-[#1DB954]/[0.14] hover:text-[#7ef0a1] hover:shadow-[0_0_20px_rgba(29,185,84,0.24)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DB954]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#070707]"
-            >
-              Saved
-            </button>
-
-            {connected && (
-              <button
-                type="button"
-                onClick={() => {
-                  void disconnectSpotify();
-                }}
-                disabled={disconnecting}
-                className="text-sm text-zinc-500 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {disconnecting
-                  ? "Disconnecting..."
-                  : "Disconnect Spotify"}
-              </button>
-            )}
-          </div>
-        </nav>
+              : undefined
+          }
+        />
 
         {/* HERO */}
         <section className="pb-16 pt-14 md:pb-20 md:pt-16">
@@ -1443,7 +1382,7 @@ export default function Home() {
         {/* LIBRARY LOAD FAILED */}
         {!loading &&
           libraryLoadFailed && (
-            <section className="mb-8 flex flex-col gap-6 rounded-[30px] border border-white/[0.07] bg-[#111111] p-8 md:flex-row md:items-center md:justify-between md:p-10">
+            <section className="mb-8 flex flex-col gap-6 rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8 md:flex-row md:items-center md:justify-between md:p-10">
               <div>
                 <h2 className="text-2xl font-bold tracking-tight">
                   Your library
@@ -1490,8 +1429,8 @@ export default function Home() {
           tracks.length ===
             0 &&
           !librarySkipped && (
-            <section className="mb-20 rounded-[30px] border border-white/[0.07] bg-[#111111] p-8 md:p-12">
-              <h2 className="text-4xl font-bold tracking-tight">
+            <section className="mb-20 rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8 md:p-12">
+              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
                 Open up your
                 library.
               </h2>
@@ -1509,7 +1448,7 @@ export default function Home() {
                 refresh it.
               </p>
 
-              <div className="mt-8 flex flex-wrap gap-3">
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <button
                   type="button"
                   onClick={() => {
@@ -1518,7 +1457,7 @@ export default function Home() {
                   disabled={
                     loading
                   }
-                  className="inline-flex min-h-16 items-center justify-center rounded-full bg-[#1DB954] px-10 text-lg font-bold text-black transition hover:scale-[1.02] hover:bg-[#22cf63] disabled:opacity-40"
+                  className="inline-flex min-h-14 items-center justify-center rounded-full sm:min-h-16 bg-[#1DB954] px-10 text-base sm:text-lg font-bold text-black transition hover:scale-[1.02] hover:bg-[#22cf63] disabled:opacity-40"
                 >
                   {loading
                     ? "Loading..."
@@ -1527,7 +1466,7 @@ export default function Home() {
 
                 <a
                   href="/api/spotify/login"
-                  className="inline-flex min-h-16 items-center justify-center rounded-full border border-white/[0.12] px-8 text-lg font-semibold text-white transition hover:bg-white/[0.06]"
+                  className="inline-flex min-h-14 items-center justify-center rounded-full sm:min-h-16 border border-white/[0.12] px-8 text-base sm:text-lg font-semibold text-white transition hover:bg-white/[0.06]"
                 >
                   Connect Spotify
                 </a>
@@ -1537,7 +1476,7 @@ export default function Home() {
                   onClick={
                     continueWithoutLoading
                   }
-                  className="inline-flex min-h-16 items-center justify-center rounded-full border border-white/[0.08] px-8 text-lg font-semibold text-zinc-400 transition hover:bg-white/[0.05] hover:text-white"
+                  className="inline-flex min-h-14 items-center justify-center rounded-full sm:min-h-16 border border-white/[0.08] px-8 text-base sm:text-lg font-semibold text-zinc-400 transition hover:bg-white/[0.05] hover:text-white"
                 >
                   Continue without
                   library
@@ -1552,15 +1491,15 @@ export default function Home() {
             0) && (
           <>
             {/* SEARCH BAR */}
-            <section className="sticky top-0 z-20 -mx-6 border-y border-white/[0.06] bg-[#070707]/90 px-6 py-5 backdrop-blur-xl md:-mx-10 md:px-10 lg:-mx-14 lg:px-14">
-              <div className="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight">
+            <section className="sticky top-0 z-20 -mx-6 border-y border-white/[0.06] bg-[#070707]/90 px-6 py-3 backdrop-blur-xl sm:py-5 md:-mx-10 md:px-10 lg:-mx-14 lg:px-14">
+              <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-baseline justify-between gap-3 md:block">
+                  <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
                     Choose your
                     sound
                   </h2>
 
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <p className="text-sm text-zinc-500 md:mt-1">
                     {
                       selected.length
                     }
@@ -1586,7 +1525,7 @@ export default function Home() {
                         )
                       }
                       placeholder="Search for any song..."
-                      className="h-12 w-full rounded-full border border-white/[0.08] bg-white/[0.05] px-5 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[#1DB954]/50 focus:bg-white/[0.07]"
+                      className="h-12 w-full rounded-full border border-white/[0.08] bg-white/[0.05] px-5 text-base text-white sm:text-sm outline-none transition placeholder:text-zinc-600 focus:border-[#1DB954]/50 focus:bg-white/[0.07]"
                     />
                   </div>
 
@@ -1597,7 +1536,7 @@ export default function Home() {
                       onClick={
                         findEcho
                       }
-                      className="min-h-12 shrink-0 rounded-full bg-[#1DB954] px-6 font-bold text-black transition hover:bg-[#22cf63] sm:px-5"
+                      className="hidden min-h-12 shrink-0 rounded-full bg-[#1DB954] px-6 font-bold text-black transition hover:bg-[#22cf63] sm:block sm:px-5"
                     >
                       Continue to
                       Echo →
@@ -1695,7 +1634,7 @@ export default function Home() {
                     0 && (
                     <div className="mt-7 space-y-5">
                       {/* GENRE FILTERS */}
-                      <div className="flex flex-wrap gap-2">
+                      <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
                         {GENRES.map(
                           (
                             genre
@@ -1709,7 +1648,7 @@ export default function Home() {
                                   genre
                                 )
                               }
-                              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                              className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition ${
                                 genreFilter ===
                                 genre
                                   ? "bg-[#1DB954] text-black"
@@ -1725,8 +1664,8 @@ export default function Home() {
                       </div>
 
                       {/* SORT */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="mr-2 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-700">
+                      <div className="-mx-6 flex items-center gap-2 overflow-x-auto px-6 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+                        <span className="mr-2 shrink-0 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-700">
                           Sort
                         </span>
 
@@ -1736,7 +1675,7 @@ export default function Home() {
                               "recent"
                             )
                           }
-                          className={`rounded-full px-4 py-2 text-sm transition ${
+                          className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm transition ${
                             sortMode ===
                             "recent"
                               ? "bg-white text-black"
@@ -1753,7 +1692,7 @@ export default function Home() {
                               "title"
                             )
                           }
-                          className={`rounded-full px-4 py-2 text-sm transition ${
+                          className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm transition ${
                             sortMode ===
                             "title"
                               ? "bg-white text-black"
@@ -1769,7 +1708,7 @@ export default function Home() {
                               "artist"
                             )
                           }
-                          className={`rounded-full px-4 py-2 text-sm transition ${
+                          className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm transition ${
                             sortMode ===
                             "artist"
                               ? "bg-white text-black"
@@ -1779,7 +1718,7 @@ export default function Home() {
                           Artist A–Z
                         </button>
 
-                        <span className="ml-auto text-sm text-zinc-700">
+                        <span className="ml-auto shrink-0 whitespace-nowrap pl-2 text-sm text-zinc-700">
                           {
                             libraryTracks.length
                           }{" "}
@@ -1898,7 +1837,7 @@ export default function Home() {
               {/* TRACK GRID */}
               {!searchingSpotify && (
                 <div className="grid grid-cols-2 gap-x-4 gap-y-9 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                  {visibleTracks.map(
+                  {shownTracks.map(
                     (
                       track
                     ) => {
@@ -1947,6 +1886,14 @@ export default function Home() {
                   )}
                 </div>
               )}
+
+              {!searchingSpotify &&
+                visibleTracks.length > shownCount && (
+                  <LoadMore
+                    remaining={visibleTracks.length - shownCount}
+                    onLoadMore={showMoreTracks}
+                  />
+                )}
 
               {/* EMPTY */}
               {!searchingSpotify &&
