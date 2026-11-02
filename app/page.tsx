@@ -9,6 +9,7 @@ import {
 import { useRouter } from "next/navigation";
 import SiteNav from "@/components/SiteNav";
 import PopularAlbumsHero from "@/components/home/PopularAlbumsHero";
+import LoadMore from "@/components/home/LoadMore";
 import SeedTray from "@/components/home/SeedTray";
 import TrackCard from "@/components/home/TrackCard";
 import {
@@ -26,6 +27,8 @@ import {
   type SortMode,
   type Track,
 } from "@/lib/home";
+
+const TRACKS_PER_BATCH = 60;
 
 export default function Home() {
   const router = useRouter();
@@ -1261,6 +1264,34 @@ export default function Home() {
     cachedSearchResults.length === 0 &&
     appleResults.length > 0;
 
+  /*
+   * Big libraries render in batches, so a
+   * phone isn't building thousands of cards
+   * up front. The count resets whenever the
+   * list itself changes.
+   */
+  const listKey = `${genreFilter}|${sortMode}|${search}`;
+
+  const [
+    shownLimit,
+    setShownLimit,
+  ] = useState({ key: listKey, count: TRACKS_PER_BATCH });
+
+  const shownCount =
+    shownLimit.key === listKey
+      ? shownLimit.count
+      : TRACKS_PER_BATCH;
+
+  const shownTracks =
+    visibleTracks.slice(0, shownCount);
+
+  function showMoreTracks() {
+    setShownLimit({
+      key: listKey,
+      count: shownCount + TRACKS_PER_BATCH,
+    });
+  }
+
   const libraryIds =
     useMemo(
       () =>
@@ -1277,15 +1308,13 @@ export default function Home() {
     <main className="min-h-screen bg-[#070707] pb-44 text-white">
       {/* BACKGROUND */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-[-400px] h-[700px] w-[1100px] -translate-x-1/2 rounded-full bg-[#1DB954]/10 blur-[180px]" />
+        <div className="echo-glow absolute inset-x-0 top-0 h-[520px]" />
       </div>
 
       <div className="relative mx-auto max-w-7xl px-6 md:px-10 lg:px-14">
         {/* NAV */}
         <SiteNav
           current="create"
-          logoSize="home"
-          className="lg:h-28"
           library={
             connected
               ? {
@@ -1808,7 +1837,7 @@ export default function Home() {
               {/* TRACK GRID */}
               {!searchingSpotify && (
                 <div className="grid grid-cols-2 gap-x-4 gap-y-9 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                  {visibleTracks.map(
+                  {shownTracks.map(
                     (
                       track
                     ) => {
@@ -1857,6 +1886,14 @@ export default function Home() {
                   )}
                 </div>
               )}
+
+              {!searchingSpotify &&
+                visibleTracks.length > shownCount && (
+                  <LoadMore
+                    remaining={visibleTracks.length - shownCount}
+                    onLoadMore={showMoreTracks}
+                  />
+                )}
 
               {/* EMPTY */}
               {!searchingSpotify &&

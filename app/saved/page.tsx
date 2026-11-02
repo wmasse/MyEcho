@@ -161,7 +161,7 @@ export default function SavedPage() {
     <main className="min-h-screen bg-[#070707] text-white">
       {/* BACKGROUND */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-1/2 top-[-450px] h-[700px] w-[1100px] -translate-x-1/2 rounded-full bg-[#1DB954]/10 blur-[190px]" />
+        <div className="echo-glow absolute inset-x-0 top-0 h-[520px]" />
       </div>
 
       <div className="relative mx-auto max-w-7xl px-6 pb-20 md:px-10 lg:px-14">

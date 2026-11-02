@@ -40,12 +40,10 @@ export type NavLibrary = {
 
 export default function SiteNav({
   current,
-  logoSize = "default",
   library,
   className = "",
 }: {
   current?: Page;
-  logoSize?: "default" | "home";
   library?: NavLibrary;
   className?: string;
 }) {
@@ -54,7 +52,7 @@ export default function SiteNav({
       aria-label="Main"
       className={`flex h-20 items-center justify-between gap-3 sm:h-24 ${className}`}
     >
-      <EchoLogo size={logoSize} />
+      <EchoLogo />
 
       <div className="flex items-center gap-1 sm:gap-1.5">
         {LINKS.map(({ page, href, label, Icon }) => {
