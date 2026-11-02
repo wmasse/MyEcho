@@ -51,7 +51,7 @@ export default function SiteNav({
   return (
     <nav
       aria-label="Main"
-      className={`flex h-20 items-center justify-between gap-2 sm:h-24 sm:gap-3 ${className}`}
+      className={`flex h-20 items-center justify-between gap-2 sm:h-28 sm:gap-3 lg:h-32 ${className}`}
     >
       <EchoLogo />
 
