@@ -98,7 +98,7 @@ export default function EchoRingsHero({
         }}
       >
         <div className="relative aspect-square w-full">
-          {/* Rings and a slow ripple from the center */}
+          {/* Rings */}
           <div aria-hidden="true" className="pointer-events-none absolute inset-0">
             {RINGS.map((radius, index) => (
               <div
@@ -111,7 +111,6 @@ export default function EchoRingsHero({
                 }}
               />
             ))}
-            <div className="echo-ripple absolute left-1/2 top-1/2 h-[96%] w-[96%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#1DB954]/50" />
           </div>
 
           <ul aria-label="Popular albums to start a mix from">
