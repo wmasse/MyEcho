@@ -79,6 +79,8 @@ function dateGroup(value: string) {
   }).format(date);
 }
 
+const HISTORY_PREVIEW = 10;
+
 function StatCard({ label, value, detail }: { label: string; value: string; detail?: string }) {
   return (
     <article className="min-w-0 rounded-[24px] border border-white/[0.07] bg-[#111111]/90 p-4 sm:p-6">
@@ -181,6 +183,7 @@ export default function StatsDashboard() {
     return {
       playCount: plays.length,
       artistCount: artistIds.size,
+      trackCount: repeats.size,
       genreCount: genres.size,
       hourly,
       peakHour: plays.length > 0 ? peakHour : null,
@@ -197,6 +200,21 @@ export default function StatsDashboard() {
     }
     return [...groups.entries()];
   }, [data]);
+
+  // Show the latest plays first; the full 50 are one tap away.
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const historyPlayCount = data?.recentlyPlayed.length ?? 0;
+  const visibleHistory = useMemo(() => {
+    if (showAllHistory) return groupedHistory;
+    let left = HISTORY_PREVIEW;
+    const trimmed: typeof groupedHistory = [];
+    for (const [group, plays] of groupedHistory) {
+      if (left <= 0) break;
+      trimmed.push([group, plays.slice(0, left)]);
+      left -= plays.length;
+    }
+    return trimmed;
+  }, [groupedHistory, showAllHistory]);
 
   const missingRequiredAccess = data?.needsReauthorization ?? false;
 
@@ -297,7 +315,11 @@ export default function StatsDashboard() {
             <section aria-label="Listening overview" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <StatCard label="Recent plays" value={loading ? "—" : String(insights.playCount)} detail="from Spotify’s recent history" />
               <StatCard label="Artists heard" value={loading ? "—" : String(insights.artistCount)} detail="in the recent play sample" />
-              <StatCard label="Genres among top artists" value={loading ? "—" : String(insights.genreCount)} detail={RANGES.find((item) => item.value === range)?.label} />
+              {insights.genreCount > 0 ? (
+                <StatCard label="Genres among top artists" value={loading ? "—" : String(insights.genreCount)} detail={RANGES.find((item) => item.value === range)?.label} />
+              ) : (
+                <StatCard label="Different songs" value={loading ? "—" : String(insights.trackCount)} detail="in the recent play sample" />
+              )}
               <StatCard label="Most active hour" value={loading || insights.peakHour === null ? "—" : hourLabel(insights.peakHour)} detail="based on recent play times" />
             </section>
 
@@ -352,7 +374,8 @@ export default function StatsDashboard() {
                 )}
               </article>
 
-              <article className="self-start rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8">
+              <div className="flex min-w-0 flex-col gap-7">
+              <article className="rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8">
                 <div className="flex items-start justify-between gap-5">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1DB954]">Right now</p>
@@ -389,10 +412,39 @@ export default function StatsDashboard() {
                   <p className="mt-7 text-sm leading-6 text-zinc-500">Nothing playing at the moment. Your most repeated track will show up here when Spotify has a repeat in your recent plays.</p>
                 )}
               </article>
+                <article className="rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1DB954]">Your rhythm</p>
+                    <h2 className="mt-2 text-2xl font-black">Listening by hour</h2>
+                    <p className="mt-2 text-sm text-zinc-600">When your recent plays happened, in your local time.</p>
+                  </div>
+                  <div className="mt-7 flex h-32 items-end gap-1.5 sm:gap-2" role="img" aria-label="Recent plays by local hour">
+                    {insights.hourly.map((count, hour) => (
+                      <div key={hour} className="group relative flex h-full flex-1 items-end">
+                        <div className={`w-full rounded-t-sm transition-colors ${count > 0 ? "bg-[#1DB954]/75 group-hover:bg-[#1DB954]" : "bg-white/[0.05]"}`} style={{ height: `${Math.max(5, (count / insights.maxHourly) * 100)}%` }} />
+                        <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black px-2 py-1 text-[10px] text-white opacity-0 shadow-lg transition group-hover:opacity-100">{hourLabel(hour)} · {count}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex justify-between text-[10px] font-medium text-zinc-600 sm:text-xs">
+                    <span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>11 PM</span>
+                  </div>
+                  {insights.genreCount > 0 && (
+                    <div className="mt-7 border-t border-white/[0.06] pt-6">
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">In your top artists</p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {[...new Set((data?.topArtists ?? []).flatMap((artist) => artist.genres ?? []))].slice(0, 8).map((genre) => (
+                          <span key={genre} className="rounded-full border border-white/[0.08] px-3 py-1.5 text-xs text-zinc-400">{genre}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </article>
+              </div>
             </section>
 
             <section className="mt-7 grid grid-cols-[minmax(0,1fr)] gap-7 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-              <article className="rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8">
+              <article className="min-w-0 rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8">
                 <div className="flex items-end justify-between gap-4">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1DB954]">The soundtrack</p>
@@ -421,67 +473,50 @@ export default function StatsDashboard() {
                 </div>
               </article>
 
-              <article className="rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1DB954]">Your rhythm</p>
-                  <h2 className="mt-2 text-2xl font-black">Listening by hour</h2>
-                  <p className="mt-2 text-sm text-zinc-600">When your recent plays happened, in your local time.</p>
-                </div>
-                <div className="mt-9 flex h-36 items-end gap-1.5 sm:gap-2" role="img" aria-label="Recent plays by local hour">
-                  {insights.hourly.map((count, hour) => (
-                    <div key={hour} className="group relative flex h-full flex-1 items-end">
-                      <div className={`w-full rounded-t-sm transition-colors ${count > 0 ? "bg-[#1DB954]/75 group-hover:bg-[#1DB954]" : "bg-white/[0.05]"}`} style={{ height: `${Math.max(5, (count / insights.maxHourly) * 100)}%` }} />
-                      <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black px-2 py-1 text-[10px] text-white opacity-0 shadow-lg transition group-hover:opacity-100">{hourLabel(hour)} · {count}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 flex justify-between text-[10px] font-medium text-zinc-600 sm:text-xs">
-                  <span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>11 PM</span>
-                </div>
-                <div className="mt-7 border-t border-white/[0.06] pt-6">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">In your top artists</p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {[...new Set((data?.topArtists ?? []).flatMap((artist) => artist.genres ?? []))].slice(0, 8).map((genre) => (
-                      <span key={genre} className="rounded-full border border-white/[0.08] px-3 py-1.5 text-xs text-zinc-400">{genre}</span>
-                    ))}
-                    {!loading && insights.genreCount === 0 && <span className="text-sm text-zinc-600">Spotify hasn’t listed genres for these artists.</span>}
+              <article className="min-w-0 rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8">
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1DB954]">The latest</p>
+                    <h2 className="mt-2 text-2xl font-black">Listening history</h2>
                   </div>
+                  <span className="text-sm text-zinc-600">Last {historyPlayCount} plays</span>
                 </div>
+                {loading ? (
+                  <div className="mt-6 space-y-4">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />)}</div>
+                ) : visibleHistory.length > 0 ? (
+                  <div className="mt-5 space-y-5">
+                    {visibleHistory.map(([group, plays]) => (
+                      <div key={group}>
+                        <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-500">{group}</h3>
+                        <div className="mt-1 divide-y divide-white/[0.05]">
+                          {plays.map((play) => (
+                            <a key={`${play.track.id}-${play.played_at}`} href={play.track.external_urls?.spotify ?? "https://open.spotify.com"} target="_blank" rel="noreferrer" className="group flex items-center gap-3 py-2.5">
+                              {trackImage(play.track) ? <CoverArt src={trackImage(play.track)!} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" size={40} /> : <div className="h-10 w-10 shrink-0 rounded-lg bg-zinc-900" />}
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-zinc-200 transition group-hover:text-[#1DB954]">{play.track.name}</p>
+                                <p className="mt-0.5 truncate text-xs text-zinc-600">{artistNames(play.track)}</p>
+                              </div>
+                              <span className="shrink-0 text-xs tabular-nums text-zinc-600">{timestampLabel(play.played_at)}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    {historyPlayCount > HISTORY_PREVIEW && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllHistory((value) => !value)}
+                        className="min-h-11 w-full rounded-full border border-white/[0.1] text-sm font-semibold text-zinc-300 transition hover:bg-white/[0.05] hover:text-white"
+                      >
+                        {showAllHistory ? "Show fewer" : `Show all ${historyPlayCount} plays`}
+                      </button>
+                    )}
+                  </div>
+                ) : <p className="mt-7 rounded-2xl border border-white/[0.06] bg-black/20 px-5 py-8 text-sm text-zinc-500">No recent plays were returned. Spotify may have limited history available right now.</p>}
               </article>
+
             </section>
 
-            <section className="mt-7 rounded-[30px] border border-white/[0.07] bg-[#111111] p-6 sm:p-8">
-              <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#1DB954]">The latest</p>
-                  <h2 className="mt-2 text-2xl font-black">Listening history</h2>
-                </div>
-                <p className="text-sm text-zinc-600">Up to 50 recent plays from Spotify</p>
-              </div>
-              {loading ? (
-                <div className="mt-6 space-y-4">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />)}</div>
-              ) : groupedHistory.length > 0 ? (
-                <div className="mt-7 grid grid-cols-[minmax(0,1fr)] gap-8 md:grid-cols-2">
-                  {groupedHistory.map(([group, plays]) => (
-                    <div key={group}>
-                      <h3 className="mb-2 text-sm font-bold text-zinc-400">{group}</h3>
-                      <div className="divide-y divide-white/[0.05]">
-                        {plays.map((play) => (
-                          <a key={`${play.track.id}-${play.played_at}`} href={play.track.external_urls?.spotify ?? "https://open.spotify.com"} target="_blank" rel="noreferrer" className="flex items-center gap-3 py-3">
-                            <span className="w-[4.5rem] shrink-0 text-xs tabular-nums text-zinc-600">{timestampLabel(play.played_at)}</span>
-                            {trackImage(play.track) ? <CoverArt src={trackImage(play.track)!} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" size={40} /> : <div className="h-10 w-10 shrink-0 rounded-lg bg-zinc-900" />}
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-zinc-200">{play.track.name}</p>
-                              <p className="mt-0.5 truncate text-xs text-zinc-600">{artistNames(play.track)}</p>
-                            </div>
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : <p className="mt-7 rounded-2xl border border-white/[0.06] bg-black/20 px-5 py-8 text-sm text-zinc-500">No recent plays were returned. Spotify may have limited history available right now.</p>}
-            </section>
 
             <p className="mx-auto mt-7 max-w-3xl text-center text-xs leading-5 text-zinc-600">
               Top items reflect Spotify’s affinity rankings. Recent-play insights use up to 50 plays from Spotify’s limited history window, not your lifetime listening history; Echo does not currently keep a separate archive.
