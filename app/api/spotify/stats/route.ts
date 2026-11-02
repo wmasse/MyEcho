@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSpotifyAccessToken } from "@/lib/spotify";
+import { upstreamTimeout } from "@/lib/upstream";
 
 type TimeRange = "short_term" | "medium_term" | "long_term";
 
@@ -50,6 +51,7 @@ async function spotifyGet<T>(token: string, path: string) {
   const response = await fetch(`https://api.spotify.com/v1${path}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
+    signal: upstreamTimeout(),
   });
 
   if (response.status === 204) {

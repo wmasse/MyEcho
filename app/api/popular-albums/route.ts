@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { upstreamTimeout } from "@/lib/upstream";
 
 type AppleAlbum = {
   id?: string | number;
@@ -17,7 +18,7 @@ export async function GET() {
   try {
     const response = await fetch(
       "https://rss.marketingtools.apple.com/api/v2/us/music/most-played/100/albums.json",
-      { next: { revalidate: 21600 } }
+      { next: { revalidate: 21600 }, signal: upstreamTimeout() }
     );
 
     if (!response.ok) {

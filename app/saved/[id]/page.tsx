@@ -8,6 +8,7 @@ import {
   SPOTIFY_PLAYLISTS_ENABLED,
   SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
 } from "@/lib/spotify-playlists";
+import CoverArt from "@/components/CoverArt";
 
 type Track = {
   id: string;
@@ -354,10 +355,11 @@ function SavedEchoContent() {
                 >
                   <div className="h-10 w-10 overflow-hidden rounded-full bg-zinc-800">
                     {track.image && (
-                      <img
+                      <CoverArt
                         src={track.image}
                         alt=""
                         className="h-full w-full object-cover"
+                        size={40}
                       />
                     )}
                   </div>
@@ -403,10 +405,11 @@ function SavedEchoContent() {
                 {/* ART */}
                 <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-zinc-900">
                   {track.image && (
-                    <img
+                    <CoverArt
                       src={track.image}
                       alt=""
                       className="h-full w-full object-cover"
+                      size={56}
                     />
                   )}
                 </div>

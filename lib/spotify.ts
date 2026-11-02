@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { upstreamTimeout } from "@/lib/upstream";
 
 const TOKEN_URL = "https://accounts.spotify.com/api/token";
 
@@ -27,6 +28,7 @@ export async function getSpotifyAccessToken() {
 
   const response = await fetch(TOKEN_URL, {
     method: "POST",
+    signal: upstreamTimeout(),
     headers: {
       Authorization: `Basic ${credentials}`,
       "Content-Type": "application/x-www-form-urlencoded",

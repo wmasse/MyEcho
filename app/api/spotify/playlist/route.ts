@@ -4,6 +4,7 @@ import {
   SPOTIFY_PLAYLISTS_ENABLED,
   SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
 } from "@/lib/spotify-playlists";
+import { upstreamTimeout } from "@/lib/upstream";
 
 export async function POST(request: NextRequest) {
   if (!SPOTIFY_PLAYLISTS_ENABLED) {
@@ -21,7 +22,10 @@ export async function POST(request: NextRequest) {
 
   if (!token) {
     return NextResponse.json(
-      { error: "not_authenticated" },
+      {
+        error: "not_authenticated",
+        message: "Connect Spotify to save this playlist.",
+      },
       { status: 401 }
     );
   }
@@ -67,6 +71,7 @@ export async function POST(request: NextRequest) {
     "https://api.spotify.com/v1/me/playlists",
     {
       method: "POST",
+      signal: upstreamTimeout(),
 
       headers: {
         Authorization: `Bearer ${token}`,
@@ -92,7 +97,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: "playlist_creation_failed",
-        details: error,
+        message: "Spotify couldn't create the playlist. Try again in a minute.",
       },
       {
         status: createResponse.status,
@@ -115,6 +120,7 @@ export async function POST(request: NextRequest) {
       `https://api.spotify.com/v1/playlists/${playlist.id}/items`,
       {
         method: "POST",
+        signal: upstreamTimeout(),
 
         headers: {
           Authorization: `Bearer ${token}`,
@@ -138,8 +144,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: "playlist_items_failed",
+          message:
+            "Spotify created the playlist but couldn't add the songs. Try again in a minute.",
           playlistId: playlist.id,
-          details: error,
         },
         {
           status: addResponse.status,

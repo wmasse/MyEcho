@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { upstreamTimeout } from "@/lib/upstream";
 
 type AppleSong = {
   trackId?: number;
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
           "User-Agent": "Echo/0.1 music search",
         },
         cache: "no-store",
+        signal: upstreamTimeout(),
       }
     );
 

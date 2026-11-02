@@ -2,6 +2,7 @@ import {
     NextRequest,
     NextResponse,
   } from "next/server";
+import { upstreamTimeout } from "@/lib/upstream";
   
   type Genre =
     | "Indie / Alternative"
@@ -249,6 +250,8 @@ import {
   
             cache:
               "no-store",
+  
+            signal: upstreamTimeout(),
           }
         );
   

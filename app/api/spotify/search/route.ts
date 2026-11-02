@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSpotifyAccessToken } from "@/lib/spotify";
+import { upstreamTimeout } from "@/lib/upstream";
 
 type SpotifySearchResponse = {
   tracks?: {
@@ -48,6 +49,7 @@ export async function GET(request: NextRequest) {
         Authorization: `Bearer ${token}`,
       },
       cache: "no-store",
+      signal: upstreamTimeout(),
     }
   );
 

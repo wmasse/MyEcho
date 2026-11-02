@@ -9,6 +9,7 @@ import {
   normalizeSharedEcho,
   type SharedEcho,
 } from "@/lib/shared-echo";
+import CoverArt from "@/components/CoverArt";
 
 type SavedEcho = {
   id: string;
@@ -24,15 +25,19 @@ export default function SharedEchoView({
   shareId?: string;
 }) {
   const router = useRouter();
-  const [echo, setEcho] = useState<SharedEcho | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Remember which link the result belongs to, so switching links
+  // shows the loading state again without resetting state in the effect.
+  const [loaded, setLoaded] = useState<{
+    shareId: string | undefined;
+    echo: SharedEcho | null;
+  } | null>(null);
+  const loading = !loaded || loaded.shareId !== shareId;
+  const echo = loading ? null : loaded.echo;
   const [remixing, setRemixing] = useState(false);
   const [remixError, setRemixError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setEcho(null);
 
     async function loadEcho() {
       try {
@@ -56,17 +61,13 @@ export default function SharedEchoView({
         }
 
         if (!cancelled) {
-          setEcho(sharedEcho);
+          setLoaded({ shareId, echo: sharedEcho });
         }
       } catch (error) {
         console.error("Could not open shared Echo:", error);
 
         if (!cancelled) {
-          setEcho(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
+          setLoaded({ shareId, echo: null });
         }
       }
     }
@@ -160,10 +161,11 @@ export default function SharedEchoView({
                   </span>
                   <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-zinc-900">
                     {track.image && (
-                      <img
+                      <CoverArt
                         src={track.image}
                         alt=""
                         className="h-full w-full object-cover"
+                        size={56}
                       />
                     )}
                   </div>

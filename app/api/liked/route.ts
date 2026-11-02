@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { upstreamTimeout } from "@/lib/upstream";
 
 type SpotifySavedTrack = {
   id: string;
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest) {
         Authorization: `Bearer ${token}`,
       },
       cache: "no-store",
+      signal: upstreamTimeout(),
     }
   );
 
@@ -60,7 +62,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: "spotify_request_failed",
-        details: error,
+        message:
+          "Spotify couldn't load your library right now. Try again in a few minutes.",
       },
       {
         status: response.status,

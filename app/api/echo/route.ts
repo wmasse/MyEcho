@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSpotifyAccessToken } from "@/lib/spotify";
 import { trackIdentityKey } from "@/lib/track-identity";
+import { upstreamTimeout } from "@/lib/upstream";
 
 type Track = {
   id: string;
@@ -71,6 +72,33 @@ type AppleSearchTrack = {
   artworkUrl100?: string;
   trackViewUrl?: string;
 };
+
+const MAX_LIBRARY_TRACKS = 20_000;
+
+function isTrack(value: unknown): value is Track {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const track = value as Record<string, unknown>;
+
+  return (
+    typeof track.id === "string" &&
+    typeof track.name === "string" &&
+    typeof track.artist === "string"
+  );
+}
+
+function finiteNumber(
+  value: unknown,
+  fallback: number
+) {
+  const number = Number(value ?? fallback);
+
+  return Number.isFinite(number)
+    ? number
+    : fallback;
+}
 
 function clamp(
   value: number,
@@ -207,6 +235,7 @@ async function searchAppleTracks(
           "User-Agent": "Echo/0.1 music search",
         },
         cache: "no-store",
+        signal: upstreamTimeout(),
       }
     );
 
@@ -315,6 +344,7 @@ async function getSimilarTracks(
           },
 
           cache: "no-store",
+          signal: upstreamTimeout(),
         }
       );
 
@@ -408,6 +438,7 @@ async function getSimilarArtists(
           },
 
           cache: "no-store",
+          signal: upstreamTimeout(),
         }
       );
 
@@ -495,6 +526,7 @@ async function findSpotifyTrack(
           },
 
           cache: "no-store",
+          signal: upstreamTimeout(),
         }
       );
 
@@ -579,6 +611,7 @@ async function searchArtistTracks(
           },
 
           cache: "no-store",
+          signal: upstreamTimeout(),
         }
       );
 
@@ -784,18 +817,37 @@ export async function POST(
   }
 
   const body =
-    await request.json();
+    await request.json().catch(() => null);
+
+  if (!body || typeof body !== "object") {
+    return NextResponse.json(
+      { error: "The request could not be read." },
+      { status: 400 }
+    );
+  }
 
   const seeds: Track[] =
-    body.seeds ?? [];
+    Array.isArray(body.seeds)
+      ? body.seeds.filter(isTrack)
+      : [];
 
+  /*
+   * The whole liked library comes from the
+   * browser, so cap it to keep one request
+   * from tying up the server.
+   */
   const library: Track[] =
-    body.library ?? [];
+    Array.isArray(body.library)
+      ? body.library
+          .filter(isTrack)
+          .slice(0, MAX_LIBRARY_TRACKS)
+      : [];
 
   const playlistSize =
     clamp(
-      Number(
-        body.playlistSize ?? 25
+      finiteNumber(
+        body.playlistSize,
+        25
       ),
       5,
       50
@@ -803,8 +855,9 @@ export async function POST(
 
   const libraryPercent =
     clamp(
-      Number(
-        body.libraryPercent ?? 70
+      finiteNumber(
+        body.libraryPercent,
+        70
       ),
       0,
       100
@@ -976,11 +1029,20 @@ export async function POST(
         candidateMap.get(key);
 
       if (existing) {
-        existing.score +=
-          candidate.score;
+        const previousMatches =
+          existing.matchedSeeds;
+        const totalMatches =
+          previousMatches + 1;
 
-        existing.matchedSeeds +=
-          1;
+        // Keep Last.fm's rank on a shared track from being summed once
+        // per seed. Agreement is useful, but shouldn't overwhelm the
+        // recommendation quality implied by each seed's own ranking.
+        existing.score =
+          (existing.score * previousMatches +
+            candidate.score) /
+          totalMatches;
+        existing.matchedSeeds =
+          totalMatches;
       } else {
         candidateMap.set(
           key,
@@ -1007,7 +1069,7 @@ export async function POST(
                 1,
               0
             ) *
-              0.8,
+              0.08,
         })
       )
       .sort(
