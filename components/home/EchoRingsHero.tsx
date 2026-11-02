@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import type { PopularAlbum } from "@/lib/home";
 
@@ -50,13 +50,34 @@ export default function EchoRingsHero({
   onPausedChange,
   onSelect,
   onSearch,
+  onSearchInViewChange,
 }: {
   albums: PopularAlbum[];
   onPausedChange: (paused: boolean) => void;
   onSelect: (album: PopularAlbum) => void;
   onSearch: (query: string) => void;
+  /** Lets the page hide its own search bar on phones while this one shows. */
+  onSearchInViewChange?: (inView: boolean) => void;
 }) {
   const [query, setQuery] = useState("");
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const onInViewRef = useRef(onSearchInViewChange);
+
+  useEffect(() => {
+    onInViewRef.current = onSearchInViewChange;
+  }, [onSearchInViewChange]);
+
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form || !("IntersectionObserver" in window)) return;
+
+    const observer = new IntersectionObserver(([entry]) =>
+      onInViewRef.current?.(entry.isIntersecting)
+    );
+    observer.observe(form);
+
+    return () => observer.disconnect();
+  }, []);
   const shown = albums.slice(0, SLOTS.length);
 
   return (
@@ -122,6 +143,7 @@ export default function EchoRingsHero({
 
           {/* SEARCH, the center of the echo */}
           <form
+            ref={formRef}
             role="search"
             onSubmit={(event) => {
               event.preventDefault();
@@ -162,7 +184,7 @@ export default function EchoRingsHero({
         </div>
 
         <p className="mt-2 text-center text-sm text-zinc-500">
-          Pick up to five songs. Or tap a cover to start from it.
+          Select one to five songs. Or tap a cover to start from it.
         </p>
       </div>
     </section>

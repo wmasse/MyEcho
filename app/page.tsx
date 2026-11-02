@@ -202,6 +202,13 @@ export default function Home() {
     );
 
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  // On phones, only one search box shows at a time: the hero's while it's
+  // on screen, then the sticky bar's once it has scrolled away.
+  const [
+    heroSearchInView,
+    setHeroSearchInView,
+  ] = useState(true);
   const tracksRef = useRef(tracks);
 
   function handleSearchChange(value: string) {
@@ -242,7 +249,11 @@ export default function Home() {
         behavior: reduceMotion ? "auto" : "smooth",
         block: "start",
       });
-      searchInputRef.current?.focus({ preventScroll: true });
+
+      // On phones, leave the keyboard closed so the results show.
+      if (window.matchMedia("(min-width: 640px)").matches) {
+        searchInputRef.current?.focus({ preventScroll: true });
+      }
     });
   }
 
@@ -1403,6 +1414,7 @@ export default function Home() {
           onPausedChange={setHeroPaused}
           onSelect={searchPopularAlbum}
           onSearch={startSearch}
+          onSearchInViewChange={setHeroSearchInView}
         />
 
         {/* ERROR */}
@@ -1493,14 +1505,17 @@ export default function Home() {
                   </h2>
 
                   <p className="text-sm text-zinc-500 md:mt-1">
-                    {
-                      selected.length
-                    }
-                    /5 selected
+                    {selected.length === 0
+                      ? "Select one to five songs"
+                      : `${selected.length} of 5 selected`}
                   </p>
                 </div>
 
-                <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row md:max-w-[460px]">
+                <div
+                  className={`flex w-full min-w-0 flex-col gap-3 sm:flex-row md:max-w-[460px] max-sm:absolute max-sm:inset-x-0 max-sm:top-full max-sm:border-b max-sm:border-white/[0.06] max-sm:bg-[#070707]/95 max-sm:px-6 max-sm:pb-3 max-sm:backdrop-blur-xl ${
+                    heroSearchInView ? "max-sm:hidden" : ""
+                  }`}
+                >
                   <div className="w-full min-w-0 flex-1">
                     <input
                       id="song-search"
