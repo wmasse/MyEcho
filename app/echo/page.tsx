@@ -12,6 +12,7 @@ import {
 import {
   saveMixToSpotify,
   sharedPlaylistNotice,
+  skippedSongsNotice,
 } from "@/lib/save-to-spotify";
 import {
   dedupeTracksByIdentity,
@@ -509,16 +510,21 @@ function EchoContent() {
       const saved = await saveMixToSpotify({
         name: playlistName.trim() || "My Echo",
         description: "Created with Echo.",
-        uris: results.map((track) => track.uri),
+        tracks: results,
       });
 
       setSavedSpotifyUrl(saved.url);
 
-      if (saved.kind === "shared") {
-        setSharedSpotifyNotice(
-          sharedPlaylistNotice(saved.removeAfterMinutes)
-        );
-      }
+      setSharedSpotifyNotice(
+        [
+          saved.kind === "shared"
+            ? sharedPlaylistNotice(saved.removeAfterMinutes)
+            : "",
+          skippedSongsNotice(saved.skipped),
+        ]
+          .filter(Boolean)
+          .join(" ")
+      );
     } catch (err) {
       console.error(err);
       setError(
@@ -1187,25 +1193,20 @@ function EchoContent() {
                 disabled={
                   savingSpotify ||
                   !SPOTIFY_PLAYLISTS_ENABLED ||
-                  !hasOnlySpotifyTracks ||
                   finding ||
                   results.length === 0
                 }
                 title={
                   !SPOTIFY_PLAYLISTS_ENABLED
                     ? SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE
-                    : hasOnlySpotifyTracks
-                      ? ""
-                      : "This Echo includes Apple Music tracks, which Spotify cannot add to a playlist."
+                    : ""
                 }
                 className="mt-3 min-h-14 w-full rounded-full bg-[#1DB954] font-bold text-black transition hover:scale-[1.01] hover:bg-[#22cf63] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {SPOTIFY_PLAYLISTS_ENABLED
-                  ? !hasOnlySpotifyTracks
-                    ? "Spotify needs Spotify tracks"
-                    : savingSpotify
-                      ? "Saving..."
-                      : "Save to Spotify"
+                  ? savingSpotify
+                    ? "Saving..."
+                    : "Save to Spotify"
                   : "Spotify playlists paused"}
               </button>
 
@@ -1217,7 +1218,7 @@ function EchoContent() {
 
               {SPOTIFY_PLAYLISTS_ENABLED && !hasOnlySpotifyTracks && (
                 <p className="mt-2 text-center text-xs leading-5 text-zinc-500">
-                  This Echo includes Apple Music tracks. Save it here or share the link.
+                  This Echo includes Apple Music songs. Echo finds their Spotify versions when you save; any Spotify doesn&apos;t have are left out.
                 </p>
               )}
 

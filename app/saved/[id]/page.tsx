@@ -11,6 +11,7 @@ import {
 import {
   saveMixToSpotify,
   sharedPlaylistNotice,
+  skippedSongsNotice,
 } from "@/lib/save-to-spotify";
 import CoverArt from "@/components/CoverArt";
 
@@ -169,14 +170,19 @@ function SavedEchoContent() {
       const saved = await saveMixToSpotify({
         name: playlist.name,
         description: "Created with Echo.",
-        uris: playlist.tracks.map((track) => track.uri),
+        tracks: playlist.tracks,
       });
 
-      if (saved.kind === "shared") {
-        setSharedSpotifyNotice(
-          sharedPlaylistNotice(saved.removeAfterMinutes)
-        );
-      }
+      setSharedSpotifyNotice(
+        [
+          saved.kind === "shared"
+            ? sharedPlaylistNotice(saved.removeAfterMinutes)
+            : "",
+          skippedSongsNotice(saved.skipped),
+        ]
+          .filter(Boolean)
+          .join(" ")
+      );
 
       window.open(
         saved.url,

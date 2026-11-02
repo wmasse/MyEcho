@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSpotifyAccessToken } from "@/lib/spotify";
+import { getSpotifyAppToken } from "@/lib/spotify-app-token";
 import { upstreamTimeout } from "@/lib/upstream";
 
 type SpotifySearchResponse = {
@@ -18,7 +19,10 @@ type SpotifySearchResponse = {
 };
 
 export async function GET(request: NextRequest) {
-  const token = await getSpotifyAccessToken();
+  // Search is catalog-only, so Echo's own key covers visitors who
+  // aren't signed in.
+  const token =
+    (await getSpotifyAccessToken()) ?? (await getSpotifyAppToken());
 
   if (!token) {
     return NextResponse.json(
