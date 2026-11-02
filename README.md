@@ -42,6 +42,7 @@ This guide covers the files checked into the repository. `node_modules`, `.next`
 | `app/api/echo/route.ts` | TypeScript | Builds an Echo recommendation list from seed songs and optional liked songs. Uses Last.fm similarity signals and resolves recommendations against Spotify or Apple Music catalogs. |
 | `app/api/liked/route.ts` | TypeScript | Reads a page of the connected Spotify user's liked songs and returns normalized track data. |
 | `app/api/spotify/login/route.ts` | TypeScript | Starts Spotify OAuth sign-in and requests access to the library and, when enabled, playlist creation. |
+| `app/api/spotify/logout/route.ts` | TypeScript | Disconnects Spotify by clearing the sign-in cookies. |
 | `app/api/spotify/callback/route.ts` | TypeScript | Validates Spotify's OAuth callback, exchanges the authorization code for tokens, and stores them in secure cookies. |
 | `app/api/spotify/search/route.ts` | TypeScript | Searches Spotify's catalog for songs using the user's access token. |
 | `app/api/spotify/playlist/route.ts` | TypeScript | Creates a private Spotify playlist and adds the supplied Spotify track URIs. Respects the playlist creation setting. |
@@ -55,10 +56,12 @@ This guide covers the files checked into the repository. `node_modules`, `.next`
 
 | File | Language | Purpose |
 | --- | --- | --- |
+| `components/CoverArt.tsx` | TypeScript with React JSX (TSX) | Album and artist artwork. Uses Next.js image optimization for allowed hosts and loads other images as they are. |
 | `components/EchoLogo.tsx` | TypeScript with React JSX (TSX) | Reusable Echo wordmark and home link. |
 | `components/ShareEchoButton.tsx` | TypeScript with React JSX (TSX) | Saves an Echo for sharing, then uses the device share sheet or copies the short link as a fallback. |
 | `components/SharedEchoView.tsx` | TypeScript with React JSX (TSX) | Displays a shared Echo and lets the visitor save a remix to their browser. |
 | `lib/shared-echo.ts` | TypeScript | Validates shared Echo data and reads older fragment-based links. |
+| `lib/upstream.ts` | TypeScript | Shared time limit for requests to Spotify, Last.fm, and Apple. |
 | `lib/spotify.ts` | TypeScript | Retrieves the Spotify access token from cookies or refreshes it using the stored refresh token. |
 | `lib/spotify-playlists.ts` | TypeScript | Reads the playlist creation setting and provides the message shown when that feature is paused. |
 
@@ -77,12 +80,6 @@ This guide covers the files checked into the repository. `node_modules`, `.next`
 
 ### Public image assets
 
-These SVG files are static vector images stored in `public/` and can be served directly by the app.
-
 | File | Language / format | Purpose |
 | --- | --- | --- |
-| `public/file.svg` | SVG (XML-based vector markup) | File/document icon asset. |
-| `public/globe.svg` | SVG (XML-based vector markup) | Globe icon asset. |
-| `public/next.svg` | SVG (XML-based vector markup) | Next.js logo asset. |
-| `public/vercel.svg` | SVG (XML-based vector markup) | Vercel logo asset. |
-| `public/window.svg` | SVG (XML-based vector markup) | Browser-window icon asset. |
+| `public/echo-mark.svg` | SVG (XML-based vector markup) | Echo logo mark, used as the site icon. |

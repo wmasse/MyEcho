@@ -8,6 +8,7 @@ import {
   SPOTIFY_PLAYLISTS_UNAVAILABLE_MESSAGE,
 } from "@/lib/spotify-playlists";
 import { dedupeTracksByIdentity } from "@/lib/track-identity";
+import CoverArt from "@/components/CoverArt";
 
 type Track = {
   id: string;
@@ -252,10 +253,11 @@ export default function SavedPage() {
                         key={`${track.id}-${index}`}
                         className="overflow-hidden"
                       >
-                        <img
+                        <CoverArt
                           src={track.image!}
                           alt=""
                           className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+                          size={200}
                         />
                       </div>
                     ))}

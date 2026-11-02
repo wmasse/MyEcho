@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { upstreamTimeout } from "@/lib/upstream";
 
 export async function GET(request: NextRequest) {
   const code =
@@ -85,6 +86,7 @@ export async function GET(request: NextRequest) {
           }),
 
         cache: "no-store",
+        signal: upstreamTimeout(),
       }
     );
 

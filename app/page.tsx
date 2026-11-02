@@ -6,195 +6,26 @@ import {
   useRef,
   useState,
 } from "react";
-
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import EchoLogo from "@/components/EchoLogo";
-
-type Track = {
-  id: string;
-  uri: string;
-  name: string;
-  artist: string;
-  album: string;
-  image: string | null;
-  externalUrl?: string;
-  addedAt?: string;
-};
-
-type GenreMap = Record<string, Genre>;
-
-const GENRES = [
-  "All",
-  "Indie / Alternative",
-  "Rock",
-  "Hip-Hop / Rap",
-  "R&B / Soul",
-  "Pop",
-  "Electronic",
-  "Metal / Punk",
-  "Dreamy / Ambient",
-  "Folk / Country",
-  "Jazz / Classical",
-  "Other",
-] as const;
-
-type Genre = (typeof GENRES)[number];
-
-type SortMode =
-  | "recent"
-  | "title"
-  | "artist";
-
-type PopularAlbum = {
-  id: string;
-  name: string;
-  artist: string;
-  image: string;
-};
-
-const POPULAR_ALBUMS: PopularAlbum[] = [
-  {
-    id: "midnights",
-    name: "Midnights",
-    artist: "Taylor Swift",
-    image:
-      "https://image-cdn-fa.spotifycdn.com/image/ab67616d00001e02fa747621a53c8e2cc436dee0",
-  },
-  {
-    id: "after-hours",
-    name: "After Hours",
-    artist: "The Weeknd",
-    image:
-      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e028863bc11d2aa12b54f5aeb36",
-  },
-  {
-    id: "sour",
-    name: "SOUR",
-    artist: "Olivia Rodrigo",
-    image:
-      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e02a91c10fe9472d9bd89802e5a",
-  },
-  {
-    id: "un-verano-sin-ti",
-    name: "Un Verano Sin Ti",
-    artist: "Bad Bunny",
-    image:
-      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e0249d694203245f241a1bcaa72",
-  },
-  {
-    id: "starboy",
-    name: "Starboy",
-    artist: "The Weeknd",
-    image:
-      "https://image-cdn-fa.spotifycdn.com/image/ab67616d00001e024718e2b124f79258be7bc452",
-  },
-  {
-    id: "damn",
-    name: "DAMN.",
-    artist: "Kendrick Lamar",
-    image:
-      "https://image-cdn-fa.spotifycdn.com/image/ab67616d00001e028b52c6b9bc4e43d873869699",
-  },
-  {
-    id: "happier-than-ever",
-    name: "Happier Than Ever",
-    artist: "Billie Eilish",
-    image:
-      "https://image-cdn-ak.spotifycdn.com/image/ab67616d00001e022a038d3bf875d23e4aeaa84e",
-  },
-];
-
-function shuffledPopularAlbums(
-  source: PopularAlbum[] = POPULAR_ALBUMS
-) {
-  const albums = [...source];
-
-  for (
-    let index = albums.length - 1;
-    index > 0;
-    index -= 1
-  ) {
-    const randomIndex =
-      Math.floor(
-        Math.random() * (index + 1)
-      );
-
-    [
-      albums[index],
-      albums[randomIndex],
-    ] = [
-      albums[randomIndex],
-      albums[index],
-    ];
-  }
-
-  return albums;
-}
-
-function primaryArtist(
-  artist: string
-) {
-  return artist
-    .split(",")[0]
-    .trim();
-}
-
-function artistKey(
-  artist: string
-) {
-  return primaryArtist(
-    artist
-  ).toLowerCase();
-}
-
-function normalizeSearchText(
-  value: string
-) {
-  return value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-}
-
-function parseRetryAfterSeconds(
-  value: string | null
-) {
-  if (!value) {
-    return null;
-  }
-
-  const seconds = Number(value);
-
-  if (
-    Number.isFinite(seconds) &&
-    seconds >= 0
-  ) {
-    return seconds;
-  }
-
-  const retryAt = Date.parse(value);
-
-  if (Number.isNaN(retryAt)) {
-    return null;
-  }
-
-  return Math.max(
-    0,
-    (retryAt - Date.now()) / 1000
-  );
-}
-
-function formatSpotifyCountdown(
-  totalSeconds: number
-) {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  return `${hours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
-}
+import PopularAlbumsHero from "@/components/home/PopularAlbumsHero";
+import SeedTray from "@/components/home/SeedTray";
+import TrackCard from "@/components/home/TrackCard";
+import {
+  GENRES,
+  POPULAR_ALBUMS,
+  artistKey,
+  formatSpotifyCountdown,
+  normalizeSearchText,
+  parseRetryAfterSeconds,
+  primaryArtist,
+  shuffledPopularAlbums,
+  type Genre,
+  type GenreMap,
+  type PopularAlbum,
+  type SortMode,
+  type Track,
+} from "@/lib/home";
 
 export default function Home() {
   const router = useRouter();
@@ -368,6 +199,48 @@ export default function Home() {
 
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const tracksRef = useRef(tracks);
+
+  const [
+    disconnecting,
+    setDisconnecting,
+  ] = useState(false);
+
+  /*
+   * Signs out of Spotify and forgets the
+   * cached library, so the next person on
+   * this browser doesn't see it. Saved
+   * Echoes stay.
+   */
+  async function disconnectSpotify() {
+    setDisconnecting(true);
+    libraryLoadController.current?.abort();
+
+    try {
+      const response = await fetch("/api/spotify/logout", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Logout returned ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Could not disconnect Spotify:", error);
+      setError("Spotify couldn't be disconnected. Check your connection and try again.");
+      setDisconnecting(false);
+      return;
+    }
+
+    try {
+      localStorage.removeItem("echoSpotifyLibrary");
+      localStorage.removeItem("echoSpotifyLibraryCachedAt");
+    } catch {
+      // Storage can be unavailable in private windows.
+    }
+
+    // A full reload clears every bit of in-memory library state.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.assign("/");
+  }
 
   function handleSearchChange(value: string) {
     setSearch(value);
@@ -882,7 +755,7 @@ export default function Home() {
 
         if (!response.ok) {
           throw new Error(
-            data?.details ||
+            data?.message ||
               data?.error ||
               `Spotify library request failed: ${response.status}`
           );
@@ -1509,6 +1382,21 @@ export default function Home() {
             >
               Saved
             </button>
+
+            {connected && (
+              <button
+                type="button"
+                onClick={() => {
+                  void disconnectSpotify();
+                }}
+                disabled={disconnecting}
+                className="text-sm text-zinc-500 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {disconnecting
+                  ? "Disconnecting..."
+                  : "Disconnect Spotify"}
+              </button>
+            )}
           </div>
         </nav>
 
@@ -1522,75 +1410,11 @@ export default function Home() {
             Popular albums to inspire your next blend
           </h1>
 
-          <div
-            aria-label="Rotating selection of popular album covers"
-            role="list"
-            className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-4 sm:gap-x-5 md:gap-x-7"
-            onMouseEnter={() => setHeroPaused(true)}
-            onMouseLeave={() => setHeroPaused(false)}
-            onFocusCapture={() => setHeroPaused(true)}
-            onBlurCapture={(event) => {
-              if (
-                !event.currentTarget.contains(
-                  event.relatedTarget as Node | null
-                )
-              ) {
-                setHeroPaused(false);
-              }
-            }}
-          >
-            {heroAlbums.slice(0, 4).map(
-              (
-                album,
-                index
-              ) => (
-                <article
-                  key={
-                    album.id
-                  }
-                  role="listitem"
-                  className={`group min-w-0 ${
-                    index %
-                      2 ===
-                    1
-                      ? "sm:translate-y-5"
-                      : ""
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => searchPopularAlbum(album)}
-                    aria-label={`Search songs from ${album.name} by ${album.artist}`}
-                    className="group block w-full min-w-0 cursor-pointer rounded-[22px] text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1DB954]"
-                  >
-                    <div className="album-card-turn relative aspect-square overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#111111] shadow-[0_24px_80px_rgba(0,0,0,0.35)] transition duration-500 group-hover:-translate-y-1">
-                      <Image
-                        src={
-                          album.image
-                        }
-                        alt=""
-                        fill
-                        sizes="(max-width: 639px) 42vw, (max-width: 1279px) 22vw, 270px"
-                        className="object-cover"
-                      />
-                    </div>
-
-                    <p className="mt-3 truncate text-sm font-semibold text-white">
-                      {
-                        album.name
-                      }
-                    </p>
-
-                    <p className="mt-1 truncate text-sm text-zinc-500">
-                      {
-                        album.artist
-                      }
-                    </p>
-                  </button>
-                </article>
-              )
-            )}
-          </div>
+          <PopularAlbumsHero
+            albums={heroAlbums}
+            onPausedChange={setHeroPaused}
+            onSelect={searchPopularAlbum}
+          />
 
           <p className="mt-8 max-w-2xl text-lg leading-8 text-zinc-400 md:text-xl">
             Pick up to five
@@ -2105,101 +1929,19 @@ export default function Home() {
                         ];
 
                       return (
-                        <div
+                        <TrackCard
                           key={track.id}
-                          className="group"
-                        >
-                          <button
-                            onClick={() =>
-                              toggleTrack(
-                                track
-                              )
-                            }
-                            disabled={
-                              maxReached
-                            }
-                            className={`w-full text-left transition ${
-                              maxReached
-                                ? "cursor-default opacity-35"
-                                : ""
-                            }`}
-                          >
-                            <div
-                              className={`relative aspect-square overflow-hidden rounded-[18px] bg-zinc-900 transition duration-200 ${
-                                isSelected
-                                  ? "ring-2 ring-[#1DB954] ring-offset-4 ring-offset-[#070707]"
-                                  : "group-hover:-translate-y-1"
-                              }`}
-                            >
-                              {track.image && (
-                                <img
-                                  src={
-                                    track.image
-                                  }
-                                  alt={`${track.name} album cover`}
-                                  className={`h-full w-full object-cover transition duration-300 ${
-                                    isSelected
-                                      ? "scale-[0.97] opacity-75"
-                                      : "group-hover:scale-[1.035]"
-                                  }`}
-                                />
-                              )}
-
-                              {isSelected && (
-                                <div className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-[#1DB954] text-sm font-black text-black">
-                                  ✓
-                                </div>
-                              )}
-
-                              {search &&
-                                isLiked &&
-                                !isSelected && (
-                                  <div className="absolute bottom-3 left-3 rounded-full bg-black/75 px-3 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-white backdrop-blur">
-                                    Liked
-                                  </div>
-                                )}
-                            </div>
-
-                            <p
-                              className={`mt-4 truncate font-semibold ${
-                                isSelected
-                                  ? "text-[#1DB954]"
-                                  : "text-white"
-                              }`}
-                            >
-                              {
-                                track.name
-                              }
-                            </p>
-
-                            <p className="mt-1 truncate text-sm text-zinc-500">
-                              {
-                                track.artist
-                              }
-                            </p>
-
-                            {!search &&
-                              genre &&
-                              genre !==
-                                "All" && (
-                                <p className="mt-1 truncate text-xs text-zinc-700">
-                                  {
-                                    genre
-                                  }
-                                </p>
-                              )}
-                          </button>
-                          {track.externalUrl && (
-                            <a
-                              href={track.externalUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-2 inline-flex rounded-full border border-white/[0.1] px-3 py-1 text-[10px] font-semibold text-zinc-500 transition hover:border-white/25 hover:text-white"
-                            >
-                              Open in Apple Music ↗
-                            </a>
-                          )}
-                        </div>
+                          track={track}
+                          isSelected={isSelected}
+                          disabled={maxReached}
+                          showLikedBadge={Boolean(search) && isLiked}
+                          genre={
+                            !search && genre !== "All"
+                              ? genre
+                              : undefined
+                          }
+                          onToggle={toggleTrack}
+                        />
                       );
                     }
                   )}
@@ -2232,76 +1974,11 @@ export default function Home() {
       </div>
 
       {/* SEED TRAY */}
-      {selected.length > 0 && (
-        <div className="fixed bottom-5 left-1/2 z-50 w-[calc(100%-24px)] max-w-6xl -translate-x-1/2">
-          <div className="rounded-[28px] border border-white/[0.1] bg-[#171717]/95 p-4 shadow-2xl shadow-black/70 backdrop-blur-2xl">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex min-w-0 items-center gap-3 overflow-x-auto">
-                {selected.map(
-                  (
-                    track
-                  ) => (
-                    <div
-                      key={
-                        track.id
-                      }
-                      className="flex min-w-[190px] max-w-[220px] shrink-0 items-center gap-3 rounded-[16px] bg-white/[0.05] p-2 pr-3"
-                    >
-                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-zinc-800">
-                        {track.image && (
-                          <img
-                            src={
-                              track.image
-                            }
-                            alt=""
-                            className="h-full w-full object-cover"
-                          />
-                        )}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">
-                          {
-                            track.name
-                          }
-                        </p>
-
-                        <p className="truncate text-xs text-zinc-500">
-                          {
-                            track.artist
-                          }
-                        </p>
-                      </div>
-
-                      <button
-                        onClick={() =>
-                          removeTrack(
-                            track.id
-                          )
-                        }
-                        className="text-lg text-zinc-600 transition hover:text-white"
-                        aria-label={`Remove ${track.name}`}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  )
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={
-                  findEcho
-                }
-                className="min-h-14 shrink-0 rounded-full bg-[#1DB954] px-8 font-bold text-black transition hover:scale-[1.02] hover:bg-[#22cf63] active:scale-[0.98]"
-              >
-                Continue to Echo →
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SeedTray
+        selected={selected}
+        onRemove={removeTrack}
+        onContinue={findEcho}
+      />
     </main>
   );
 }

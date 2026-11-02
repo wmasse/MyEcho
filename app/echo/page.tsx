@@ -13,6 +13,7 @@ import {
   dedupeTracksByIdentity,
   trackIdentityKey,
 } from "@/lib/track-identity";
+import CoverArt from "@/components/CoverArt";
 
 type Track = {
   id: string;
@@ -638,10 +639,11 @@ function EchoContent() {
               >
                 <div className="h-9 w-9 overflow-hidden rounded-full bg-zinc-800">
                   {track.image && (
-                    <img
+                    <CoverArt
                       src={track.image}
                       alt=""
                       className="h-full w-full object-cover"
+                      size={36}
                     />
                   )}
                 </div>
@@ -764,10 +766,11 @@ function EchoContent() {
 
                         <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-zinc-900">
                           {track.image && (
-                            <img
+                            <CoverArt
                               src={track.image}
                               alt=""
                               className="h-full w-full object-cover"
+                              size={56}
                             />
                           )}
                         </div>

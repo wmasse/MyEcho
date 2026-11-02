@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import EchoLogo from "@/components/EchoLogo";
+import CoverArt from "@/components/CoverArt";
 
 type TimeRange = "short_term" | "medium_term" | "long_term";
 
@@ -83,12 +85,12 @@ function StatsNav() {
     <nav className="flex h-24 items-center justify-between">
       <EchoLogo />
       <div className="flex items-center gap-5 text-sm sm:gap-7">
-        <a className="text-zinc-500 transition hover:text-white" href="/">
+        <Link className="text-zinc-500 transition hover:text-white" href="/">
           Create
-        </a>
-        <a className="text-zinc-500 transition hover:text-white" href="/saved">
+        </Link>
+        <Link className="text-zinc-500 transition hover:text-white" href="/saved">
           Saved
-        </a>
+        </Link>
         <span aria-current="page" className="font-semibold text-white">
           Stats
         </span>
@@ -336,7 +338,7 @@ export default function StatsDashboard() {
                   <div className="mt-7 flex items-center gap-5 sm:gap-7">
                     <div className="h-28 w-28 shrink-0 overflow-hidden rounded-full bg-zinc-900 sm:h-36 sm:w-36">
                       {data.topArtists[0].images?.[0]?.url ? (
-                        <img src={data.topArtists[0].images[0].url} alt="" className="h-full w-full object-cover" />
+                        <CoverArt src={data.topArtists[0].images[0].url} alt="" className="h-full w-full object-cover" size={144} />
                       ) : <div className="flex h-full items-center justify-center text-4xl font-black text-zinc-700">♪</div>}
                     </div>
                     <div className="min-w-0">
@@ -360,7 +362,7 @@ export default function StatsDashboard() {
                       >
                         <span className="w-5 text-right text-xs font-semibold tabular-nums text-zinc-600">{String(index + 2).padStart(2, "0")}</span>
                         {artist.images?.[0]?.url ? (
-                          <img src={artist.images[0].url} alt="" className="h-9 w-9 rounded-full object-cover" />
+                          <CoverArt src={artist.images[0].url} alt="" className="h-9 w-9 rounded-full object-cover" size={36} />
                         ) : <div className="h-9 w-9 rounded-full bg-zinc-900" />}
                         <span className="truncate text-sm font-semibold text-zinc-300 transition group-hover:text-[#1DB954]">{artist.name}</span>
                         <span aria-hidden="true" className="ml-auto text-xs text-zinc-700 group-hover:text-[#1DB954]">↗</span>
@@ -382,7 +384,7 @@ export default function StatsDashboard() {
                   <div className="mt-7 h-28 animate-pulse rounded-2xl bg-white/[0.04]" />
                 ) : data?.currentlyPlaying?.item ? (
                   <div className="mt-7 flex items-center gap-4">
-                    {trackImage(data.currentlyPlaying.item) ? <img src={trackImage(data.currentlyPlaying.item)!} alt="" className="h-20 w-20 rounded-2xl object-cover" /> : <div className="h-20 w-20 rounded-2xl bg-zinc-900" />}
+                    {trackImage(data.currentlyPlaying.item) ? <CoverArt src={trackImage(data.currentlyPlaying.item)!} alt="" className="h-20 w-20 rounded-2xl object-cover" size={80} /> : <div className="h-20 w-20 rounded-2xl bg-zinc-900" />}
                     <div className="min-w-0">
                       <p className="truncate text-lg font-bold">{data.currentlyPlaying.item.name}</p>
                       <p className="mt-1 truncate text-sm text-zinc-500">{artistNames(data.currentlyPlaying.item)}</p>
@@ -391,7 +393,7 @@ export default function StatsDashboard() {
                   </div>
                 ) : insights.mostRepeated ? (
                   <div className="mt-7 flex items-center gap-4">
-                    {trackImage(insights.mostRepeated.track) ? <img src={trackImage(insights.mostRepeated.track)!} alt="" className="h-20 w-20 rounded-2xl object-cover" /> : <div className="h-20 w-20 rounded-2xl bg-zinc-900" />}
+                    {trackImage(insights.mostRepeated.track) ? <CoverArt src={trackImage(insights.mostRepeated.track)!} alt="" className="h-20 w-20 rounded-2xl object-cover" size={80} /> : <div className="h-20 w-20 rounded-2xl bg-zinc-900" />}
                     <div className="min-w-0">
                       <p className="truncate text-lg font-bold">{insights.mostRepeated.track.name}</p>
                       <p className="mt-1 truncate text-sm text-zinc-500">{artistNames(insights.mostRepeated.track)}</p>
@@ -427,7 +429,7 @@ export default function StatsDashboard() {
                   )) : (data?.topTracks ?? []).map((track, index) => (
                     <a key={track.id} href={track.external_urls?.spotify ?? "https://open.spotify.com"} target="_blank" rel="noreferrer" className="group flex items-center gap-4 py-3.5">
                       <span className="w-5 shrink-0 text-right text-sm font-semibold tabular-nums text-zinc-600">{String(index + 1).padStart(2, "0")}</span>
-                      {trackImage(track) ? <img src={trackImage(track)!} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" /> : <div className="h-12 w-12 shrink-0 rounded-xl bg-zinc-900" />}
+                      {trackImage(track) ? <CoverArt src={trackImage(track)!} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" size={48} /> : <div className="h-12 w-12 shrink-0 rounded-xl bg-zinc-900" />}
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-semibold text-zinc-100 transition group-hover:text-[#1DB954]">{track.name}</p>
                         <p className="mt-1 truncate text-sm text-zinc-500">{artistNames(track)}</p>
@@ -487,7 +489,7 @@ export default function StatsDashboard() {
                         {plays.map((play) => (
                           <a key={`${play.track.id}-${play.played_at}`} href={play.track.external_urls?.spotify ?? "https://open.spotify.com"} target="_blank" rel="noreferrer" className="flex items-center gap-3 py-3">
                             <span className="w-[4.5rem] shrink-0 text-xs tabular-nums text-zinc-600">{timestampLabel(play.played_at)}</span>
-                            {trackImage(play.track) ? <img src={trackImage(play.track)!} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" /> : <div className="h-10 w-10 shrink-0 rounded-lg bg-zinc-900" />}
+                            {trackImage(play.track) ? <CoverArt src={trackImage(play.track)!} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" size={40} /> : <div className="h-10 w-10 shrink-0 rounded-lg bg-zinc-900" />}
                             <div className="min-w-0">
                               <p className="truncate text-sm font-semibold text-zinc-200">{play.track.name}</p>
                               <p className="mt-0.5 truncate text-xs text-zinc-600">{artistNames(play.track)}</p>
