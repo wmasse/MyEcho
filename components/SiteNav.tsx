@@ -10,6 +10,7 @@ import {
   LogoutIcon,
   PlusIcon,
   RefreshIcon,
+  UserIcon,
 } from "@/components/icons";
 
 type Page = "create" | "saved" | "stats";
@@ -50,11 +51,11 @@ export default function SiteNav({
   return (
     <nav
       aria-label="Main"
-      className={`flex h-20 items-center justify-between gap-3 sm:h-24 ${className}`}
+      className={`flex h-20 items-center justify-between gap-2 sm:h-24 sm:gap-3 ${className}`}
     >
       <EchoLogo />
 
-      <div className="flex items-center gap-1 sm:gap-1.5">
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5">
         {LINKS.map(({ page, href, label, Icon }) => {
           const active = page === current;
 
@@ -64,7 +65,7 @@ export default function SiteNav({
               href={href}
               aria-current={active ? "page" : undefined}
               title={label}
-              className={`flex h-10 min-w-10 items-center justify-center gap-2 rounded-[10px] text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1DB954] sm:h-9 sm:px-3 ${
+              className={`flex h-10 min-w-9 items-center justify-center gap-2 rounded-[10px] text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1DB954] sm:h-9 sm:min-w-10 sm:px-3 ${
                 active
                   ? "bg-white/[0.08] text-white"
                   : "text-zinc-400 hover:bg-white/[0.05] hover:text-white"
@@ -185,9 +186,12 @@ function AccountMenu({ library }: { library?: NavLibrary }) {
     return (
       <a
         href="/api/spotify/login"
-        className="ml-1 flex h-9 shrink-0 items-center rounded-full border border-white/[0.12] px-3.5 text-sm font-medium text-zinc-200 transition-colors hover:border-white/25 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1DB954] sm:ml-2"
+        title="Connect Spotify"
+        className="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/[0.12] text-sm font-medium text-zinc-200 transition-colors hover:border-white/25 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1DB954] sm:ml-2 sm:w-auto sm:px-3.5"
       >
-        Connect
+        {/* Same footprint as the profile circle on phones, so the bar fits. */}
+        <UserIcon className="h-[18px] w-[18px] sm:hidden" />
+        <span className="sr-only sm:not-sr-only">Connect</span>
       </a>
     );
   }

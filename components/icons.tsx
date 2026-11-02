@@ -64,3 +64,11 @@ export function LogoutIcon(props: IconProps) {
     </Svg>
   );
 }
+
+export function UserIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM5 20a7 7 0 0 1 14 0" />
+    </Svg>
+  );
+}
