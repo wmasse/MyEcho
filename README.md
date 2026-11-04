@@ -60,6 +60,7 @@ This guide covers the files checked into the repository. `node_modules`, `.next`
 | `app/shared/[id]/page.tsx` | TypeScript with React JSX (TSX) | Opens a shared Echo addressed by its short ID. |
 | `app/saved/page.tsx` | TypeScript with React JSX (TSX) | Lists browser-saved Echoes and supports renaming, editing, deleting, and sending them to Spotify. |
 | `app/saved/[id]/page.tsx` | TypeScript with React JSX (TSX) | Shows one saved Echo selected by its ID. Supports renaming tracks and saving the mix to Spotify. |
+| `app/privacy/page.tsx` | TypeScript with React JSX (TSX) | Privacy policy. Explains what Echo reads from Spotify, what stays in the browser, what shared links store, and which services Echo uses. |
 | `app/layout.tsx` | TypeScript with React JSX (TSX) | Defines the shared HTML document structure, page metadata, and global stylesheet for all routes. |
 | `app/globals.css` | CSS with Tailwind CSS | Imports Tailwind, sets global colors and fonts, and defines the album-cover animation. |
 | `app/favicon.ico` | ICO image (binary) | Browser tab and bookmark icon served by Next.js. |

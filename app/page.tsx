@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import SiteNav from "@/components/SiteNav";
 import EchoRingsHero from "@/components/home/EchoRingsHero";
@@ -1929,6 +1930,12 @@ export default function Home() {
           </>
         )}
       </div>
+
+      <p className="relative mx-auto mt-16 max-w-7xl px-6 text-xs text-zinc-600 md:px-10 lg:px-14">
+        <Link href="/privacy" className="transition-colors hover:text-zinc-300">
+          Privacy
+        </Link>
+      </p>
 
       {/* SEED TRAY */}
       <SeedTray
